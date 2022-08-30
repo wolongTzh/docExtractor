@@ -15,8 +15,8 @@ import java.util.List;
 public class DocExtractorPoi {
 
     public static void main(String[] args) throws Exception {
-        String path = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\wps转换后报告.doc";
-        paraInWordDoc(path);
+        String path = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\wps转换后报告.docx";
+        tableInWordDocx(path);
     }
 
 
@@ -39,22 +39,19 @@ public class DocExtractorPoi {
                 //读取每一行数据
                 for (int i = 0; i < rows.size(); i++) {
                     XWPFTableRow row = rows.get(i);
+                    System.out.println("row height = " + row.getHeight());
                     //读取每一列数据
                     List<XWPFTableCell> cells = row.getTableCells();
                     List<String> rowList = new ArrayList<>();
                     outStr = "";
                     for (int j = 0; j < cells.size(); j++) {
                         XWPFTableCell cell = cells.get(j);
+                        String text = cell.getText();
 //                        System.out.println(cell.getColor());
-                        if(i == 0) {
-                            head[j] = cell.getText();
-                        }
-                        else if(!cell.getText().equals("")) {
-//                            outStr += head[j] + "为" + cell.getText() + ",";
-                        }
-                        outStr += cell.getText() + "+";
+                        System.out.print(text + "&" + cell.getWidth());
                     }
-                    System.out.println(outStr);
+                    System.out.println();
+//                    System.out.println(outStr);
                     if(i != 0) {
 //                        outStr = outStr.substring(0, outStr.length()-1);
                         tableList.addAll(rowList);

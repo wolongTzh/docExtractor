@@ -1,40 +1,43 @@
-package com.tsinghua.demo;
+package com.tsinghua.demo.present;
 
+import com.spire.pdf.FileFormat;
 import com.spire.pdf.PdfDocument;
 import com.spire.pdf.PdfPageBase;
 import com.spire.pdf.graphics.PdfMargins;
 import com.spire.pdf.utilities.PdfTable;
 import com.spire.pdf.utilities.PdfTableExtractor;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
-import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
-import org.apache.pdfbox.text.PDFTextStripper;
 
 import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
 
-public class PdfExtractor {
+public class PdfReader {
 
     public static void main(String[] args) throws Exception {
-        String path = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\output";
+        String path = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\1210827387.PDF";
         String basePath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\output\\";
+
+        splitPdf(path);
+
         //创建File对象，指定路径文件
-        File file1 = new File(path);
-        //判断是否有目录
-        if(file1.isDirectory()) {
-            //获取目录中的所有文件名称
-            String[] fileName = file1.list();
-            Arrays.sort(fileName);
-            for(String str : fileName) {
-                readPdfPara(basePath + str);
-            }
-        }
-//        splitPdf(path);
+//        Long start = System.currentTimeMillis();
+//        File file1 = new File(basePath);
+//        //判断是否有目录
+//        if(file1.isDirectory()) {
+//            //获取目录中的所有文件名称
+//            String[] fileName = file1.list();
+//            Arrays.sort(fileName);
+//            for(String str : fileName) {
+//                readPdfPara(basePath + str);
+//                readPdfTable(basePath + str);
+//            }
+//        }
+//        Long duration = System.currentTimeMillis() - start;
+//        System.out.println("duration = " + duration);
     }
+
 
     public static void readPdfTable(String path) throws IOException {
         //加载PDF文档
@@ -61,8 +64,9 @@ public class PdfExtractor {
                         for (int j = 0; j < column; j++)
                         {
                             String text = table.getText(i, j);
+                            text = filterCharacters(text);
                             System.out.print(text + "\t");
-                            builder.append(text+" ");
+                            builder.append(text+ " ");
                         }
                         System.out.println();
                         builder.append("\r\n");
@@ -75,6 +79,28 @@ public class PdfExtractor {
         fileWriter.write(builder.toString());
         fileWriter.flush();
         fileWriter.close();
+    }
+
+    public static void readPdfPara(String path) throws IOException {
+        //加载Word文档
+        PdfDocument document = new PdfDocument(path);
+
+        //定义一个int型变量
+        int index = 0;
+
+        //遍历PDF文档中每页
+        PdfPageBase page;
+        for (int i= 0; i<document.getPages().getCount();i++) {
+            page = document.getPages().get(i);
+            String text = page.extractText(false);
+//            text = filterCharacters(text);
+            if(text.equals("")) {
+                continue;
+            }
+            //调用extractText()方法提取文本
+            System.out.println(text);
+            System.out.println("\n");
+        }
     }
 
     public static void splitPdf(String path) {
@@ -94,7 +120,8 @@ public class PdfExtractor {
                 page = newDoc1.getPages().add(pdf.getPages().get(i).getSize(), new PdfMargins(0));
                 pdf.getPages().get(i).createTemplate().draw(page, new Point2D.Float(0,0));
             }
-            newDoc1.saveToFile(outPathHead + j + outPathTail);
+            char order = (char) ((j / 10) + 'a');
+            newDoc1.saveToFile(outPathHead + order + outPathTail);
         }
 
 
@@ -103,68 +130,22 @@ public class PdfExtractor {
 //        pdf.close();
     }
 
-    public static void readPdfPara(String path) throws IOException {
-        //加载Word文档
-        PdfDocument document = new PdfDocument(path);
-
-        //定义一个int型变量
-        int index = 0;
-
-        //遍历PDF文档中每页
-        PdfPageBase page;
-        for (int i= 0; i<document.getPages().getCount();i++) {
-            page = document.getPages().get(i);
-            //调用extractText()方法提取文本
-            System.out.println(page.extractText(false));
-        }
+    private static String filterCharacters(String text) {
+        text = text.replace(" ", "");
+        text = text.replace("\n", "");
+        text = text.replace("\r", "");
+        text = text.replace("\b", "");
+//        text = text.replace("\f", "");
+        text = text.replace("\u000E", "");
+        text = text.replace("\u0007", "");
+        text = text.replace("\u0001", "");
+        return text;
     }
 
-    /**
-
-     * 读取PDF文件的文字内容
-
-     * @param pdfPath
-
-     * @throws Exception
-
-     */
-
-    public static void getTextFromPdf(String pdfPath) throws Exception {
-
-        File file = new File(pdfPath);
-        InputStream is = null;
-        PDDocument document = null;
-        try {
-            if (pdfPath.endsWith(".PDF")) {
-                document = PDDocument.load(file);
-                PDDocumentCatalog catalog = document.getDocumentCatalog();
-                int pageSize = document.getNumberOfPages();
-                // 一页一页读取
-                for (int i = 0; i < pageSize; i++) {
-                    // 文本内容
-                    PDFTextStripper stripper = new PDFTextStripper();
-
-                    // 设置按顺序输出
-                    stripper.setSortByPosition(true);
-                    stripper.setStartPage(i + 1);
-                    stripper.setEndPage(i + 1);
-                    String text = stripper.getText(document);
-                    System.out.println(text.trim());
-                    System.out.println("-=-=-=-=-=-=-=-=-=-=-=-=-");
-                }
-            }
-        } catch (InvalidPasswordException e) {
-        } catch (IOException e) {
-        } finally {
-            try {
-                if (document != null) {
-                    document.close();
-                }
-                if (is != null) {
-                    is.close();
-                }
-            } catch (IOException e) {
-            }
-        }
+    public static void changeToWord(String basePath, String fileName) throws IOException {
+        //加载Word文档
+        PdfDocument document = new PdfDocument(basePath + fileName);
+        fileName = fileName.replace("PDF", "docx");
+        document.saveToFile(basePath + fileName, FileFormat.DOCX);
     }
 }

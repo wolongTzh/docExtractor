@@ -56,7 +56,7 @@ public class DocReader {
                     }
                     article.add(text);
                     builder.append(text);
-                    System.out.println(text);
+//                    System.out.println(text);
                 }
                 catch(Exception e){
                     continue;
