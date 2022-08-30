@@ -9,6 +9,8 @@ import java.util.List;
 
 public class DocXReader {
 
+    static SplitPara splitPara = new SplitPara();
+
     public static void main(String[] args) throws Exception {
         String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\wps转换后报告.docx";
         String outputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\ExtractedTable.txt";
@@ -26,17 +28,64 @@ public class DocXReader {
             XWPFDocument xwpf = new XWPFDocument(in);//得到word文档的信息
             List<String> article = new ArrayList<>();
             String singlePara = "";
+            XWPFParagraph para1 = null;
+            XWPFParagraph para2 = null;
+            XWPFParagraph para3 = null;
+            String content = "";
+            String title = "";
             FileWriter fileWriter = new FileWriter(outputPath);
             StringBuilder builder = new StringBuilder();
             for(IBodyElement element : xwpf.getBodyElements()) {
                 if(element instanceof XWPFParagraph) {
-                    String text = readText((XWPFParagraph) element);
+                    XWPFParagraph para = (XWPFParagraph) element;
+                    if(!splitPara.filterMeaninglessPara(para)) {
+                        continue;
+                    }
+                    if(para1 == null) {
+                        para1 = para;
+                        continue;
+                    }
+                    else if(para2 == null) {
+                        para2 = para;
+                        continue;
+                    }
+                    else if(para3 == null) {
+                        para3 = para;
+                    }
+                    else {
+                        para1 = para2;
+                        para2 = para3;
+                        para3 = para;
+                    }
+                    int judge = -1;
+                    if(para1 != null && para2 != null && para3 != null) {
+                        judge = splitPara.exportJudgement(para1, para2, para3);
+                    }
+                    if(judge == 2 && content.equals("")) {
+                        judge = 0;
+                    }
+                    para = para2;
+                    String text = readText(para);
                     if(text == null) {
                         continue;
                     }
+                    if(judge == 0) {
+                        if(!content.equals("")) {
+                            builder.append("内容：" + content + "\n");
+                        }
+                        content = "";
+                        title += text + "\n";
+                    }
+                    else {
+                        if(!title.equals("")) {
+                            builder.append("标题：" + title + "\n");
+                        }
+                        title = "";
+                        content += text + "\n";
+                    }
                     article.add(text);
-                    builder.append(text + "\n");
-                    System.out.println(text);
+//                    builder.append(text + "\n");
+//                    System.out.println(text);
                 }
                 if(element instanceof XWPFTable) {
                     String text = readTable((XWPFTable) element);
@@ -44,8 +93,8 @@ public class DocXReader {
                         continue;
                     }
                     article.add(text);
-                    builder.append(text);
-                    System.out.println(text);
+//                    builder.append(text);
+//                    System.out.println(text);
                 }
             }
             fileWriter.write(builder.toString());
