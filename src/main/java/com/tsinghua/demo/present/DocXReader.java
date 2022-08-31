@@ -1,15 +1,20 @@
 package com.tsinghua.demo.present;
 
-import org.apache.poi.xwpf.usermodel.*;
+import com.tsinghua.demo.present.docx.TableUtil;
+import com.tsinghua.demo.present.docx.TextFilterUtil;
+import org.apache.poi.xwpf.usermodel.IBodyElement;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
 
 import java.io.FileInputStream;
 import java.io.FileWriter;
-import java.util.ArrayList;
-import java.util.List;
 
 public class DocXReader {
 
-    static SplitPara splitPara = new SplitPara();
+    static TextFilterUtil textFilterUtil = new TextFilterUtil();
+    static TableUtil tableUtil = new TableUtil();
+    static String splitLine = "==============================\n";
 
     public static void main(String[] args) throws Exception {
         String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\wps转换后报告.docx";
@@ -22,23 +27,25 @@ public class DocXReader {
      * @param filePath 文件路径
      * @return
      */
-    public static List<String> distributor(String filePath, String outputPath){
+    public static void distributor(String filePath, String outputPath){
         try{
             FileInputStream in = new FileInputStream(filePath);//载入文档
             XWPFDocument xwpf = new XWPFDocument(in);//得到word文档的信息
-            List<String> article = new ArrayList<>();
-            String singlePara = "";
             XWPFParagraph para1 = null;
             XWPFParagraph para2 = null;
             XWPFParagraph para3 = null;
             String content = "";
             String title = "";
+            String head = "";
+            String pageStart = splitLine;
+            boolean pageStartTag = false;
+            boolean startTag = true;
             FileWriter fileWriter = new FileWriter(outputPath);
             StringBuilder builder = new StringBuilder();
             for(IBodyElement element : xwpf.getBodyElements()) {
                 if(element instanceof XWPFParagraph) {
                     XWPFParagraph para = (XWPFParagraph) element;
-                    if(!splitPara.filterMeaninglessPara(para)) {
+                    if(!textFilterUtil.filterMeaninglessPara(para)) {
                         continue;
                     }
                     if(para1 == null) {
@@ -59,17 +66,34 @@ public class DocXReader {
                     }
                     int judge = -1;
                     if(para1 != null && para2 != null && para3 != null) {
-                        judge = splitPara.exportJudgement(para1, para2, para3);
-                    }
-                    if(judge == 2 && content.equals("")) {
-                        judge = 0;
+                        judge = textFilterUtil.exportJudgement(para1, para2, para3);
                     }
                     para = para2;
                     String text = readText(para);
                     if(text == null) {
                         continue;
                     }
-                    if(judge == 0) {
+                    if(startTag && judge == 3) {
+                        pageStart = readText(para1);
+                        judge = 0;
+                    }
+                    else {
+                        startTag = false;
+                    }
+                    String text3 = readText(para3);
+                    if(text3.equals(pageStart)) {
+                        pageStartTag = true;
+                    }
+                    else {
+                        pageStartTag = false;
+                    }
+                    if(judge == 2 && content.equals("")) {
+                        judge = 0;
+                    }
+                    if(text.equals(pageStart)) {
+                        continue;
+                    }
+                    if(judge == 0 || judge == 3) {
                         if(!content.equals("")) {
                             builder.append("内容：" + content + "\n");
                         }
@@ -83,28 +107,25 @@ public class DocXReader {
                         title = "";
                         content += text + "\n";
                     }
-                    article.add(text);
 //                    builder.append(text + "\n");
 //                    System.out.println(text);
                 }
                 if(element instanceof XWPFTable) {
-                    String text = readTable((XWPFTable) element);
+                    String text = tableUtil.readTable((XWPFTable) element, pageStartTag);
                     if(text == null) {
                         continue;
                     }
-                    article.add(text);
-//                    builder.append(text);
-//                    System.out.println(text);
+                    builder.append(text);
+                    System.out.println(text);
                 }
             }
             fileWriter.write(builder.toString());
             fileWriter.flush();
             fileWriter.close();
 
-        }catch(Exception e){
+        }catch(Exception e) {
             e.printStackTrace();
         }
-        return null;
     }
 
     /**
@@ -114,7 +135,7 @@ public class DocXReader {
      */
     public static String readText(XWPFParagraph para) {
         String text = para.getText();
-        text = filterCharacters(text);
+        text = textFilterUtil.filterCharacters(text);
         if(text.equals("")) {
             return null;
         }
@@ -126,81 +147,8 @@ public class DocXReader {
             }
         }
         if(judgeNum) {
-            String splitLine = "==========================================================================================================================================================\n";
             return splitLine;
         }
-        return text;
-    }
-
-    /**
-     * 读取表格格式
-     * @param table 传入的表格
-     * @return
-     */
-    public static String readTable(XWPFTable table) {
-        List<XWPFTableRow> rows = table.getRows();
-        if(rows.size() == 1) {
-            return null;
-        }
-        String retText = "";
-        String[] head = new String[rows.get(0).getTableCells().size()];
-        //遍历表头
-        List<XWPFTableCell> headCells = rows.get(0).getTableCells();
-        for (int j = 0; j < headCells.size(); j++) {
-            XWPFTableCell cell = headCells.get(j);
-            String tempText = cell.getText();
-            tempText = filterCharacters(tempText);
-            if(tempText.equals("")) {
-                tempText = "未知项";
-            }
-            if(j != 0) {
-                head[j] = "的" + tempText + "是";
-            }
-            else {
-                head[j] = tempText + "是";
-            }
-        }
-        //遍历表体
-        for (int i = 1; i < rows.size(); i++) {
-            XWPFTableRow row = rows.get(i);
-            //读取每一列数据
-            List<XWPFTableCell> cells = row.getTableCells();
-            String text = "";
-            String headText = head[0] + cells.get(0).getText();
-            for (int j = 1; j < cells.size(); j++) {
-                XWPFTableCell cell = cells.get(j);
-                String tempText = cell.getText();
-                tempText = filterCharacters(tempText);
-                if(tempText.equals("")) {
-                    continue;
-                }
-                if(j < head.length) {
-                    text += headText + head[j] + tempText + "\n";
-                }
-                else {
-                    text += headText + "的未知项是" + tempText + "\n";
-                }
-            }
-            if(text.equals("")) {
-                continue;
-            }
-            retText += text;
-        }
-        if(retText.equals("")) {
-            return null;
-        }
-        return retText;
-    }
-
-    private static String filterCharacters(String text) {
-        text = text.replace(" ", "");
-        text = text.replace("\n", "");
-        text = text.replace("\r", "");
-        text = text.replace("\b", "");
-//        text = text.replace("\f", "");
-        text = text.replace("\u000E", "");
-        text = text.replace("\u0007", "");
-        text = text.replace("\u0001", "");
         return text;
     }
 }

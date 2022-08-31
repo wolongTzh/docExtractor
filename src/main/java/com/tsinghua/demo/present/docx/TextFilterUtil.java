@@ -1,11 +1,11 @@
-package com.tsinghua.demo.present;
+package com.tsinghua.demo.present.docx;
 
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 
 import java.util.List;
 
-public class SplitPara {
+public class TextFilterUtil {
 
     public int exportJudgement(XWPFParagraph para1, XWPFParagraph para2, XWPFParagraph para3) {
         int fz1 = getFontSize(para1);
@@ -22,6 +22,9 @@ public class SplitPara {
         }
         else if(fz1 == fz2) {
             return 2;
+        }
+        else if(fz1 < fz2) {
+            return 3;
         }
         return 0;
     }
@@ -45,5 +48,18 @@ public class SplitPara {
             return false;
         }
         return true;
+    }
+
+    public String filterCharacters(String text) {
+        text = text.replace(" ", "");
+        text = text.replace("\n", "");
+        text = text.replace("\r", "");
+        text = text.replace("\b", "");
+//        text = text.replace("\f", "");
+        text = text.replace("\u000E", "");
+        text = text.replace("\u0007", "");
+        text = text.replace("\u0001", "");
+        text = text.replace("\t", "");
+        return text;
     }
 }
