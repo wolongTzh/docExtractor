@@ -27,9 +27,6 @@ public class TableUtil {
             System.out.println();
         }
         List<XWPFTableRow> rows = table.getRows();
-        if(rows.size() == 1) {
-            return null;
-        }
         boolean titlePos = true;
         if(!consistancy) {
             widthRecorder = new HashMap<>();
