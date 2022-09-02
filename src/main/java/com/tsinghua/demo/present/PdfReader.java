@@ -16,7 +16,7 @@ import java.util.Arrays;
 public class PdfReader {
 
     public static void main(String[] args) throws Exception {
-        String path = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\1210827387.PDF";
+        String path = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\1210827387.PDF";
         String basePath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\output\\";
 
         splitPdf(path);
@@ -108,7 +108,7 @@ public class PdfReader {
         PdfDocument pdf = new PdfDocument();
         pdf.loadFromFile(path);
         String outPathHead = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\output\\splitPdf";
-        String outPathTail = ".pdf";
+        String outPathTail = ".docx";
         int i = 0;
         for (int j=10; i < pdf.getPages().getCount(); j+=10) {
             PdfPageBase page;
@@ -121,7 +121,7 @@ public class PdfReader {
                 pdf.getPages().get(i).createTemplate().draw(page, new Point2D.Float(0,0));
             }
             char order = (char) ((j / 10) + 'a');
-            newDoc1.saveToFile(outPathHead + order + outPathTail);
+            newDoc1.saveToFile(outPathHead + order + outPathTail, FileFormat.DOCX);
         }
 
 
