@@ -13,6 +13,16 @@ import java.util.List;
 public class TextFilterUtil {
 
     List<String> filterChar = new ArrayList<>();
+    // 根据style判断当前行是标题还是内容
+    int titleTag = -1;
+    int contentTag = -2;
+    int unknown = 0;
+
+    /**
+     * 初始化关键词词典
+     * @param file
+     * @throws IOException
+     */
     public void init(File file) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(file));//构造一个BufferedReader类来读取文件
         String s = null;
@@ -21,15 +31,22 @@ public class TextFilterUtil {
         }
     }
 
+    /**
+     * 根据连续三行的字号大小判断第二行是否为标题
+     * @param para1
+     * @param para2
+     * @param para3
+     * @return
+     */
     public int exportJudgement(XWPFParagraph para1, XWPFParagraph para2, XWPFParagraph para3) {
-        int fz1 = getFontSize(para1);
-        int fz2 = getFontSize(para2);
-        int fz3 = getFontSize(para3);
-        if(fz1 <= 0 || fz2 <= 0 || fz3 <= 0) {
-            if(fz2 == -1) {
+        int fz1 = getStyleOrFontSize(para1);
+        int fz2 = getStyleOrFontSize(para2);
+        int fz3 = getStyleOrFontSize(para3);
+        if(fz1 <= unknown || fz2 <= unknown || fz3 <= unknown) {
+            if(fz2 == titleTag) {
                 return 3;
             }
-            else if(fz2 == -2) {
+            else if(fz2 == contentTag) {
                 return 1;
             }
             else {
@@ -51,14 +68,19 @@ public class TextFilterUtil {
         return 0;
     }
 
-    public int getFontSize(XWPFParagraph para) {
+    /**
+     * 获取当前行的形式（标题 or 内容）或者是字号
+     * @param para
+     * @return
+     */
+    public int getStyleOrFontSize(XWPFParagraph para) {
         String style = para.getStyle();
         if(style != null) {
             if(style.contains("Head")) {
-                return -1;
+                return titleTag;
             }
             if(style.contains("Body")) {
-                return -2;
+                return contentTag;
             }
         }
         List<XWPFRun> runs = para.getRuns();
@@ -67,22 +89,14 @@ public class TextFilterUtil {
                 return run.getFontSize();
             }
         }
-        return 0;
+        return unknown;
     }
 
-    public int getStyle(XWPFParagraph para) {
-        String style = para.getStyle();
-        if(style != null) {
-            if(style.contains("Head")) {
-                return 1;
-            }
-            if(style.contains("Body")) {
-                return 2;
-            }
-        }
-        return 0;
-    }
-
+    /**
+     * 过滤掉无意义的当前行
+     * @param para
+     * @return
+     */
     public boolean filterMeaninglessPara(XWPFParagraph para) {
         String text = para.getText();
         if(text == null) {
@@ -94,6 +108,11 @@ public class TextFilterUtil {
         return true;
     }
 
+    /**
+     * 替换无意义字符
+     * @param text
+     * @return
+     */
     public String filterCharacters(String text) {
         text = text.replace(" ", "");
         text = text.replace("\n", "");
@@ -107,6 +126,11 @@ public class TextFilterUtil {
         return text;
     }
 
+    /**
+     * 过滤无用段落，通过关键词的匹配
+     * @param content
+     * @return
+     */
     public boolean filterKeyWord(String content) {
         for(String str : filterChar) {
             if(content.contains(str)) {
@@ -114,5 +138,19 @@ public class TextFilterUtil {
             }
         }
         return false;
+    }
+
+    /**
+     * 读取段落文本格式
+     * @param para 段落
+     * @return
+     */
+    public String readText(XWPFParagraph para) {
+        String text = para.getText();
+        text = filterCharacters(text);
+        if(text.equals("")) {
+            return null;
+        }
+        return text;
     }
 }

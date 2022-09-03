@@ -15,27 +15,31 @@ public class TableUtil {
     /**
      * 读取表格格式
      * @param table 传入的表格
+     * @param consistancy 该表格是否是和上一个表格连续
+     *                    主要是根据两个表格之间是否有其他文本来判断的
      * @return
      */
     public String readTable(XWPFTable table, boolean consistancy) {
+        // 特殊情况：A 指 B
         String pointSituation = pointSituation(table);
         if(pointSituation != null) {
             return pointSituation + "\n";
         }
+        // 特殊情况：左右结构的表格
         String leftRightTable = leftRightTable(table);
         if(leftRightTable != null) {
             return leftRightTable + "\n";
         }
         String retText = "";
         List<XWPFTableRow> rows = table.getRows();
-//        XWPFTableRow firstRow = rows.get(0);
-//        boolean consistancy = !judgeTitle(firstRow) && leftRight(firstRow) == null;
+        // 不连续的表格要空行
         if(!consistancy) {
             retText += "\n";
             System.out.println();
         }
-
+        // 用于标识每行是否是标题行（主要是根据上一行是不是标题来判断，当然有可能不全面，所以也可能需要加一些其他考虑情况）
         boolean titlePos = true;
+        // 该bool主要是用来标注表格里面嵌套复杂标题的情况
         boolean complicatedTitlePos = false;
         if(!consistancy) {
             widthRecorder = new HashMap<>();
@@ -44,6 +48,7 @@ public class TableUtil {
         //遍历表体
         for (int i = 0; i < rows.size(); i++) {
             XWPFTableRow row = rows.get(i);
+            // 判断该行是否为左右结构
             String leftRight = leftRight(row);
             if(leftRight != null) {
                 retText += leftRight;
@@ -51,6 +56,7 @@ public class TableUtil {
             }
             //读取每一列数据
             List<XWPFTableCell> cells = row.getTableCells();
+            // 特殊情况：一行一条信息
             if(cells.size() == 1) {
                 retText += cells.get(0).getText() + "\n";
                 continue;
@@ -60,6 +66,7 @@ public class TableUtil {
             int widthAcc = 0;
             int curIndex = 0;
             String fstCol = "";
+            // 遍历一行的每一列
             for (int j = 0; j < cells.size(); j++) {
                 complicatedTitlePos = false;
                 XWPFTableCell cell = cells.get(j);
@@ -67,10 +74,12 @@ public class TableUtil {
                 widthAcc += width;
                 String text = cell.getText();
                 text = textFilterUtil.filterCharacters(text);
+                // 属于该行是第一行标题行的情况，要向集合里面添加标题元素
                 if(titleRecorder.size() == 0) {
                     tempTitle.add(text);
                     tempWidth.put(j, width);
                 }
+                // 该行是内容行的情况
                 else if(cells.size() == titleRecorder.size() &&  !judgeTitleWithoutColor(row)) {
                     titlePos = false;
                     if(text.equals("")) {
@@ -89,10 +98,13 @@ public class TableUtil {
                         System.out.println(fstCol + "——" + titleRecorder.get(j) + ":" + text);
                     }
                 }
+                // 该行是标题行，但不是第一行标题，需要逐渐填充
                 else {
+                    // 一些不是标题行的特殊情况
                     if(!judgeTitle(row) && !judgeTitleWithoutColor(row) && !titlePos) {
                         continue;
                     }
+                    // 上一行不是标题但是本行是标题，所以也是标题的开始
                     if(!titlePos) {
                         tempTitle.add(text);
                         tempWidth.put(j, width);
@@ -113,9 +125,11 @@ public class TableUtil {
                     }
                 }
             }
+            // 该行是表格中的嵌套表格的标题，也算是该更新list了
             if(!titlePos && complicatedTitlePos) {
                 titlePos = true;
             }
+            // 过了一行标题后，进行更新
             if(titlePos) {
                 widthRecorder = tempWidth;
                 titleRecorder = tempTitle;
@@ -124,6 +138,11 @@ public class TableUtil {
         return retText + "\n";
     }
 
+    /**
+     * 指情况：A 指 B
+     * @param table
+     * @return
+     */
     public String pointSituation(XWPFTable table) {
         List<XWPFTableRow> rows = table.getRows();
         for (int i = 0; i < rows.size(); i++) {
@@ -144,6 +163,11 @@ public class TableUtil {
         return ret;
     }
 
+    /**
+     * 判断是左右结构的行
+     * @param row
+     * @return
+     */
     public String leftRight(XWPFTableRow row) {
         String retText = "";
         List<XWPFTableCell> cells = row.getTableCells();
@@ -166,6 +190,11 @@ public class TableUtil {
         return retText;
     }
 
+    /**
+     * 判断是纯左右结构的表格
+     * @param table
+     * @return
+     */
     public String leftRightTable(XWPFTable table) {
         List<XWPFTableRow> rows = table.getRows();
         String retText = "";
@@ -195,6 +224,11 @@ public class TableUtil {
         return retText;
     }
 
+    /**
+     * 判断该行为标题行
+     * @param row
+     * @return
+     */
     public boolean judgeTitle(XWPFTableRow row) {
         List<XWPFTableCell> firstCells = row.getTableCells();
         for (int j = 0; j < firstCells.size(); j++) {
@@ -207,6 +241,11 @@ public class TableUtil {
         return true;
     }
 
+    /**
+     * 判断该行为标题行(不考虑单元格背景颜色)
+     * @param row
+     * @return
+     */
     public boolean judgeTitleWithoutColor(XWPFTableRow row) {
         List<XWPFTableCell> cells = row.getTableCells();
         if(cells.size() < 2) {

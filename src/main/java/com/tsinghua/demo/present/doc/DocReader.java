@@ -1,4 +1,4 @@
-package com.tsinghua.demo.present;
+package com.tsinghua.demo.present.doc;
 
 import com.tsinghua.demo.present.doc.TableUtilDoc;
 import org.apache.poi.hwpf.HWPFDocument;
