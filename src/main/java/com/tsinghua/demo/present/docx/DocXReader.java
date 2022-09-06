@@ -16,6 +16,7 @@ public class DocXReader {
 
     static TextFilterUtil textFilterUtil = new TextFilterUtil();
     static TableUtil tableUtil = new TableUtil();
+    static int paraCountThreshold = 100;
 
     public static void main(String[] args) throws Exception {
 
@@ -27,7 +28,7 @@ public class DocXReader {
      * 转化单篇文档
      */
     public static void singelGeneartor() {
-        String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\1.docx";
+        String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\1210827387.docx";
         String outputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\ExtractedTable.txt";
         distributor(inputPath, outputPath);
     }
@@ -58,9 +59,9 @@ public class DocXReader {
             if(!filePath.endsWith(".docx")) {
                 return;
             }
-            File file = new File("C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\filterTag.txt");
+
             // 过滤信息用的信息初始化
-            textFilterUtil.init(file);
+            textFilterUtil.init();
             FileInputStream in = new FileInputStream(filePath);//载入文档
             XWPFDocument xwpf = new XWPFDocument(in);//得到word文档的信息
             // 三个连续行判断字号确定是否是标题
@@ -76,6 +77,9 @@ public class DocXReader {
             boolean paraTag = true;
             FileWriter fileWriter = new FileWriter(outputPath);
             StringBuilder builder = new StringBuilder();
+            StringBuilder innerBuilder = new StringBuilder();
+            // 过滤需要的
+            int countPara = 0;
             for(IBodyElement element : xwpf.getBodyElements()) {
                 if(element instanceof XWPFParagraph) {
                     XWPFParagraph para = (XWPFParagraph) element;
@@ -106,8 +110,8 @@ public class DocXReader {
                         para2 = para3;
                         para3 = para;
                     }
+                    JudgeFontSizeEnum judge = JudgeFontSizeEnum.UNKHOWN_TAG;
                     // 判断前后行的字体大小来确定是否为标题行
-                    int judge = -1;
                     if(para1 != null && para2 != null && para3 != null) {
                         judge = textFilterUtil.exportJudgement(para1, para2, para3);
                     }
@@ -125,22 +129,33 @@ public class DocXReader {
                     else {
                         pageStartTag = false;
                     }
+                    if(text3.equals("盈利与规模")) {
+                        System.out.println(1);
+                    }
+                    countPara++;
                     // 如果是前一行和当前行字号一致，但是前一行是标题，那也应该视为标题
-                    if(judge == 2 && content.equals("")) {
-                        judge = 0;
+                    if(judge == JudgeFontSizeEnum.NEED_CHECK_TAG && content.equals("")) {
+                        judge = JudgeFontSizeEnum.TITILE_TAG;
                     }
                     // 是标题的情况：前一行比当前行字号小，或者前一行大于当前行大于下一行
-                    if(judge == 0 || judge == 3) {
+                    if(judge == JudgeFontSizeEnum.TITILE_TAG) {
                         if(!content.equals("")) {
-                            builder.append(content + "\n");
+                            if(countPara >= paraCountThreshold) {
+                                if(textFilterUtil.filterKeyWord(innerBuilder.toString())) {
+                                    builder.append(innerBuilder);
+                                }
+                                innerBuilder.delete(0, innerBuilder.length());
+                                countPara = 0;
+                            }
+                            innerBuilder.append(content + "\n");
                         }
                         content = "";
                         title += "《" + text + "》\n";
                     }
-                    // 是内容的情况：前一行比当前行字号大或者判断不出来的情况
+                    // 是内容的情况：前一行比当前行字号大或者判断不出来的情况（"其它情况"目前都视为内容了）
                     else {
                         if(!title.equals("")) {
-                            builder.append(title + "\n");
+                            innerBuilder.append(title + "\n");
                         }
                         title = "";
                         content += text + "\n";
@@ -148,21 +163,27 @@ public class DocXReader {
                 }
                 if(element instanceof XWPFTable) {
                     String text = tableUtil.readTable((XWPFTable) element, !paraTag);
-                    if(text == null) {
-                        continue;
-                    }
+                    countPara++;
                     // 是表格的情况，推缓存buffer
                     if(!content.equals("")) {
-                        builder.append(content + "\n");
+                        innerBuilder.append(content + "\n");
                     }
                     content = "";
                     if(!title.equals("")) {
-                        builder.append(title + "\n");
+                        innerBuilder.append(title + "\n");
                     }
                     title = "";
                     paraTag = false;
+                    if(textFilterUtil.filterKeyWord(innerBuilder.toString())) {
+                        builder.append(innerBuilder);
+                    }
+                    innerBuilder.delete(0, innerBuilder.length());
+                    countPara = 0;
+                    if(text == null || textFilterUtil.filterCharacters(text).equals("")) {
+                        continue;
+                    }
                     builder.append(text);
-                    System.out.println(text);
+//                    System.out.println(text);
                 }
             }
             fileWriter.write(builder.toString());
@@ -177,7 +198,7 @@ public class DocXReader {
     public static void testPrint(String filePath, String outputPath){
         try{
             File file = new File("C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\filterTag.txt");
-            textFilterUtil.init(file);
+            textFilterUtil.init();
             FileInputStream in = new FileInputStream(filePath);//载入文档
             XWPFDocument xwpf = new XWPFDocument(in);//得到word文档的信息
             XWPFDocument outDoc = new XWPFDocument();//得到word文档的信息

@@ -4,6 +4,7 @@ import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 
+import java.io.IOException;
 import java.util.*;
 
 public class TableUtil {
@@ -19,7 +20,10 @@ public class TableUtil {
      *                    主要是根据两个表格之间是否有其他文本来判断的
      * @return
      */
-    public String readTable(XWPFTable table, boolean consistancy) {
+    public String readTable(XWPFTable table, boolean consistancy) throws IOException {
+        if(textFilterUtil.filterChar.size() == 0) {
+            textFilterUtil.init();
+        }
         // 特殊情况：A 指 B
         String pointSituation = pointSituation(table);
         if(pointSituation != null) {
@@ -33,9 +37,11 @@ public class TableUtil {
         String retText = "";
         List<XWPFTableRow> rows = table.getRows();
         // 不连续的表格要空行
+        if(consistancy) {
+            consistancy = !judgeUniqueTitleName(rows.get(0));
+        }
         if(!consistancy) {
             retText += "\n";
-            System.out.println();
         }
         // 用于标识每行是否是标题行（主要是根据上一行是不是标题来判断，当然有可能不全面，所以也可能需要加一些其他考虑情况）
         boolean titlePos = true;
@@ -58,6 +64,9 @@ public class TableUtil {
             List<XWPFTableCell> cells = row.getTableCells();
             // 特殊情况：一行一条信息
             if(cells.size() == 1) {
+                if(!textFilterUtil.filterKeyWordTable(cells.get(0).getText())) {
+                    continue;
+                }
                 retText += cells.get(0).getText() + "\n";
                 continue;
             }
@@ -94,8 +103,11 @@ public class TableUtil {
                         }
                     }
                     else {
-                        retText += "【" + fstCol + "——" + titleRecorder.get(j) + ":" + text + "】\n";
-                        System.out.println(fstCol + "——" + titleRecorder.get(j) + ":" + text);
+                        String tempAdd = "【" + fstCol + "——" + titleRecorder.get(j) + ":" + text + "】\n";
+                        if(!textFilterUtil.filterKeyWordTable(tempAdd)) {
+                            continue;
+                        }
+                        retText += tempAdd;
                     }
                 }
                 // 该行是标题行，但不是第一行标题，需要逐渐填充
@@ -185,6 +197,11 @@ public class TableUtil {
         for (int j = 0; j < cells.size(); j+=2) {
             XWPFTableCell cell1 = cells.get(j);
             XWPFTableCell cell2 = cells.get(j+1);
+            String cell1Text = textFilterUtil.filterCharacters(cell1.getText());
+            String cell2Text = textFilterUtil.filterCharacters(cell2.getText());
+            if(cell1Text.equals("") || cell2Text.equals("")) {
+                continue;
+            }
             retText += "【" + cell1.getText() + " = " + cell2.getText() + "】\n";
         }
         return retText;
@@ -197,6 +214,9 @@ public class TableUtil {
      */
     public String leftRightTable(XWPFTable table) {
         List<XWPFTableRow> rows = table.getRows();
+        if(judgeTitleWithoutColor(rows.get(0))) {
+            return null;
+        }
         String retText = "";
         boolean shortTag = false;
         for (int i = 0; i < rows.size(); i++) {
@@ -215,10 +235,22 @@ public class TableUtil {
         for (int i = 0; i < rows.size(); i++) {
             XWPFTableRow row = rows.get(i);
             List<XWPFTableCell> cells = row.getTableCells();
+            for (int j = 0; j < cells.size(); j++) {
+                XWPFTableCell cell = cells.get(j);
+                if(cell.getText().equals("")) {
+                    return null;
+                }
+            }
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            XWPFTableRow row = rows.get(i);
+            List<XWPFTableCell> cells = row.getTableCells();
             for (int j = 0; j < cells.size(); j+=2) {
                 XWPFTableCell cell1 = cells.get(j);
                 XWPFTableCell cell2 = cells.get(j+1);
-                retText += "【" + cell1.getText() + " = " + cell2.getText() + "】\n";
+                String cell1Text = textFilterUtil.filterCharacters(cell1.getText());
+                String cell2Text = textFilterUtil.filterCharacters(cell2.getText());
+                retText += "【" + cell1Text + " = " + cell2Text + "】\n";
             }
         }
         return retText;
@@ -251,8 +283,8 @@ public class TableUtil {
         if(cells.size() < 2) {
             return false;
         }
-        if(!cells.get(0).getText().equals("")) {
-            return false;
+        if(cells.get(0).getText().equals("")) {
+            return true;
         }
         for (int j = 1; j < cells.size(); j++) {
             XWPFTableCell cell = cells.get(j);
@@ -261,7 +293,19 @@ public class TableUtil {
                 return false;
             }
         }
-        return true;
+        return judgeUniqueTitleName(row);
+    }
+
+    public boolean judgeUniqueTitleName(XWPFTableRow row) {
+        List<XWPFTableCell> cells = row.getTableCells();
+        for (int j = 0; j < cells.size(); j++) {
+            XWPFTableCell cell = cells.get(j);
+            String text = cell.getText();
+            if(textFilterUtil.filterCharacters(text).equals("项目") || textFilterUtil.filterCharacters(text).equals("金额")) {
+                return true;
+            }
+        }
+        return false;
     }
 
 

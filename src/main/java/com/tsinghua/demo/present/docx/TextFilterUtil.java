@@ -17,13 +17,16 @@ public class TextFilterUtil {
     int titleTag = -1;
     int contentTag = -2;
     int unknown = 0;
+    // 文档过滤开关
+    boolean startFilter = false;
+    int pairCountPor = 500;
 
     /**
      * 初始化关键词词典
-     * @param file
      * @throws IOException
      */
-    public void init(File file) throws IOException {
+    public void init() throws IOException {
+        File file = new File("C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\filterTag.txt");
         BufferedReader br = new BufferedReader(new FileReader(file));//构造一个BufferedReader类来读取文件
         String s = null;
         while((s = br.readLine())!=null) {//使用readLine方法，一次读一行
@@ -38,34 +41,34 @@ public class TextFilterUtil {
      * @param para3
      * @return
      */
-    public int exportJudgement(XWPFParagraph para1, XWPFParagraph para2, XWPFParagraph para3) {
+    public JudgeFontSizeEnum exportJudgement(XWPFParagraph para1, XWPFParagraph para2, XWPFParagraph para3) {
         int fz1 = getStyleOrFontSize(para1);
         int fz2 = getStyleOrFontSize(para2);
         int fz3 = getStyleOrFontSize(para3);
         if(fz1 <= unknown || fz2 <= unknown || fz3 <= unknown) {
             if(fz2 == titleTag) {
-                return 3;
+                return JudgeFontSizeEnum.TITILE_TAG;
             }
             else if(fz2 == contentTag) {
-                return 1;
+                return JudgeFontSizeEnum.CONTENT_TAG;
             }
             else {
-                return -1;
+                return JudgeFontSizeEnum.UNKHOWN_TAG;
             }
         }
         if(fz1 > fz2 && fz2 > fz3) {
-            return 0;
+            return JudgeFontSizeEnum.TITILE_TAG;
         }
         else if(fz1 > fz2) {
-            return 1;
+            return JudgeFontSizeEnum.CONTENT_TAG;
         }
         else if(fz1 == fz2) {
-            return 2;
+            return JudgeFontSizeEnum.NEED_CHECK_TAG;
         }
         else if(fz1 < fz2) {
-            return 3;
+            return JudgeFontSizeEnum.TITILE_TAG;
         }
-        return 0;
+        return JudgeFontSizeEnum.UNKHOWN_TAG;
     }
 
     /**
@@ -126,18 +129,91 @@ public class TextFilterUtil {
         return text;
     }
 
+    public boolean filterPara(List<String> headList, List<String> contentList) {
+        if(headList.size() != contentList.size()) {
+            return false;
+        }
+        String contentToFilter = "";
+        for(int i=0; i<headList.size(); i++) {
+            String head = headList.get(i);
+            String content = contentList.get(i);
+            contentToFilter += head + content;
+            if(filterKeyWord(contentToFilter)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * 过滤无用段落，通过关键词的匹配
      * @param content
      * @return
      */
     public boolean filterKeyWord(String content) {
+        if(!startFilter) {
+            return true;
+        }
+        content = content.replace("\n\n", "\n");
+        // 标题中含有关键词则直接保留
+        String[] contents = content.split("\n");
+        for(String str : contents) {
+            if(str.startsWith("《") && str.endsWith("》")) {
+                for(String c : filterChar) {
+                    if(str.contains(c)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        int count = 0;
+        // 通过比例计算需要匹配多少个关键词
+        int neededCount = content.length() / pairCountPor;
+        if(neededCount == 0) {
+            neededCount = 1;
+        }
+        // 关键词匹配
+        for(String str : filterChar) {
+            if(count >= neededCount) {
+                return true;
+            }
+            count += appearTime(content, str);
+        }
+        return false;
+    }
+
+    /**
+     * 过滤无用段落，通过关键词的匹配（表格版本）
+     * @param content
+     * @return
+     */
+    public boolean filterKeyWordTable(String content) {
+        if(!startFilter) {
+            return true;
+        }
         for(String str : filterChar) {
             if(content.contains(str)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * 计算一个字符串包含另一个字符串的次数
+     * @param source
+     * @param target
+     * @return
+     */
+    public int appearTime(String source, String target) {
+        int times = 0;
+        String handledStr = source;
+        while (handledStr.contains(target)) {
+            int index = handledStr.indexOf(target);
+            times++;
+            handledStr = handledStr.substring(index + target.length());
+        }
+        return times;
     }
 
     /**
