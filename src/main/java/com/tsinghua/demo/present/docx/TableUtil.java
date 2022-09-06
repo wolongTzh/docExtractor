@@ -90,7 +90,7 @@ public class TableUtil {
                     tempWidth.put(j, width);
                 }
                 // 该行是内容行的情况
-                else if(cells.size() == titleRecorder.size() &&  !judgeTitleWithoutColor(row)) {
+                else if(cells.size() == titleRecorder.size() && !judgeTitle(row)) {
                     titlePos = false;
                     if(text.equals("")) {
                         continue;
@@ -116,7 +116,7 @@ public class TableUtil {
                 // 该行是标题行，但不是第一行标题，需要逐渐填充
                 else {
                     // 一些不是标题行的特殊情况
-                    if(!judgeTitle(row) && !judgeTitleWithoutColor(row) && !titlePos) {
+                    if(cells.size() == titleRecorder.size() || !judgeTitle(row)) {
                         continue;
                     }
                     // 上一行不是标题但是本行是标题，所以也是标题的开始
@@ -281,7 +281,7 @@ public class TableUtil {
                 return false;
             }
         }
-        return true;
+        return judgeTitleWithoutColor(row);
     }
 
     /**

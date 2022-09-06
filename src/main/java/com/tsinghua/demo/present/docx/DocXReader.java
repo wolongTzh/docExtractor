@@ -28,7 +28,7 @@ public class DocXReader {
      * 转化单篇文档
      */
     public static void singelGeneartor() {
-        String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\1210827387.docx";
+        String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\1.docx";
         String outputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\ExtractedTable.txt";
         distributor(inputPath, outputPath);
     }
@@ -128,9 +128,6 @@ public class DocXReader {
                     }
                     else {
                         pageStartTag = false;
-                    }
-                    if(text3.equals("盈利与规模")) {
-                        System.out.println(1);
                     }
                     countPara++;
                     // 如果是前一行和当前行字号一致，但是前一行是标题，那也应该视为标题
