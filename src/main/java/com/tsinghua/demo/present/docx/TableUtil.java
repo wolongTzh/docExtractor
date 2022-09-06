@@ -36,10 +36,11 @@ public class TableUtil {
         }
         String retText = "";
         List<XWPFTableRow> rows = table.getRows();
-        // 不连续的表格要空行
+        // 存在表头第一行有明显标题倾向的情况下也算是一个新的表格，不能连续
         if(consistancy) {
             consistancy = !judgeUniqueTitleName(rows.get(0));
         }
+        // 不连续的表格要空行
         if(!consistancy) {
             retText += "\n";
         }
@@ -94,6 +95,7 @@ public class TableUtil {
                     if(text.equals("")) {
                         continue;
                     }
+                    // 第一列信息为主要信息，需要拼到后面每一列
                     if(j == 0) {
                         if(titleRecorder.get(j).equals("")) {
                             fstCol = text;
@@ -102,6 +104,7 @@ public class TableUtil {
                             fstCol = titleRecorder.get(j) + ":" + text;
                         }
                     }
+                    // 其它列的信息需要和第一列进行拼接
                     else {
                         String tempAdd = "【" + fstCol + "——" + titleRecorder.get(j) + ":" + text + "】\n";
                         if(!textFilterUtil.filterKeyWordTable(tempAdd)) {
@@ -123,6 +126,7 @@ public class TableUtil {
                         complicatedTitlePos = true;
                         continue;
                     }
+                    // 拼接标题，更新list和map
                     int lastWidth = widthRecorder.get(curIndex);
                     String lastTitleText = titleRecorder.get(curIndex);
                     String curTitleText = lastTitleText;
@@ -183,10 +187,12 @@ public class TableUtil {
     public String leftRight(XWPFTableRow row) {
         String retText = "";
         List<XWPFTableCell> cells = row.getTableCells();
+        // 单元格数量需为2的倍数
         if(cells.size() % 2 != 0) {
             return null;
         }
         String color = null;
+        // 单元格背景颜色从左至右一个是黑一个是白
         for (int j = 0; j < cells.size(); j++) {
             XWPFTableCell cell = cells.get(j);
             if(Objects.equals(color, cell.getColor())) {
@@ -194,6 +200,7 @@ public class TableUtil {
             }
             color = cell.getColor();
         }
+        // 返回左右结构的拼接文本
         for (int j = 0; j < cells.size(); j+=2) {
             XWPFTableCell cell1 = cells.get(j);
             XWPFTableCell cell2 = cells.get(j+1);
@@ -214,11 +221,13 @@ public class TableUtil {
      */
     public String leftRightTable(XWPFTable table) {
         List<XWPFTableRow> rows = table.getRows();
+        // 判断第一行标题行是否是标题，是标题就不是左右结构表格
         if(judgeTitleWithoutColor(rows.get(0))) {
             return null;
         }
         String retText = "";
         boolean shortTag = false;
+        // 判断每一行单元格数量，要求都是2的倍数且不能大于4且必须有两个单元格为一行的情况
         for (int i = 0; i < rows.size(); i++) {
             XWPFTableRow row = rows.get(i);
             List<XWPFTableCell> cells = row.getTableCells();
@@ -232,6 +241,7 @@ public class TableUtil {
         if(!shortTag) {
             return null;
         }
+        // 单元格如果有空值，那就不是左右结构表格了
         for (int i = 0; i < rows.size(); i++) {
             XWPFTableRow row = rows.get(i);
             List<XWPFTableCell> cells = row.getTableCells();
@@ -242,6 +252,7 @@ public class TableUtil {
                 }
             }
         }
+        // 判断是左右结构表格，进行赋值
         for (int i = 0; i < rows.size(); i++) {
             XWPFTableRow row = rows.get(i);
             List<XWPFTableCell> cells = row.getTableCells();
@@ -257,7 +268,7 @@ public class TableUtil {
     }
 
     /**
-     * 判断该行为标题行
+     * 判断该行为标题行（一行都是有背景色的情况）
      * @param row
      * @return
      */
@@ -280,12 +291,15 @@ public class TableUtil {
      */
     public boolean judgeTitleWithoutColor(XWPFTableRow row) {
         List<XWPFTableCell> cells = row.getTableCells();
+        // 该行只有一个单元格，占了一行，肯定不是标题
         if(cells.size() < 2) {
             return false;
         }
+        // 该行第一个单元格是空，是标题行
         if(cells.get(0).getText().equals("")) {
             return true;
         }
+        // 该行如果存在有空值的情况，就不是标题行
         for (int j = 1; j < cells.size(); j++) {
             XWPFTableCell cell = cells.get(j);
             String text = cell.getText();
@@ -293,9 +307,15 @@ public class TableUtil {
                 return false;
             }
         }
+        // 判断是否有特殊标题名称，有就是标题行
         return judgeUniqueTitleName(row);
     }
 
+    /**
+     * 特殊标题名称判断（为该标题名称时代表是新表格的标题）
+     * @param row
+     * @return
+     */
     public boolean judgeUniqueTitleName(XWPFTableRow row) {
         List<XWPFTableCell> cells = row.getTableCells();
         for (int j = 0; j < cells.size(); j++) {
