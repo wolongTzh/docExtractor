@@ -59,7 +59,6 @@ public class DocXReader {
             if(!filePath.endsWith(".docx")) {
                 return;
             }
-
             // 过滤信息用的信息初始化
             textFilterUtil.init();
             FileInputStream in = new FileInputStream(filePath);//载入文档
@@ -87,7 +86,7 @@ public class DocXReader {
                     if(!textFilterUtil.filterMeaninglessPara(para)) {
                         continue;
                     }
-                    // 文章开始，弟一行作为标题加上，写死了
+                    // 文章开始，第一行作为标题加上，写死了
                     if(pageStartTag) {
                         String text = textFilterUtil.readText(para);
                         title += "《" + text + "》\n";

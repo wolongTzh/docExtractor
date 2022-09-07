@@ -18,7 +18,8 @@ public class TextFilterUtil {
     int contentTag = -2;
     int unknown = 0;
     // 文档过滤开关
-    boolean startFilter = false;
+    boolean startFilter = true;
+    boolean startFilterTable = true;
     int pairCountPor = 500;
 
     /**
@@ -188,7 +189,7 @@ public class TextFilterUtil {
      * @return
      */
     public boolean filterKeyWordTable(String content) {
-        if(!startFilter) {
+        if(!startFilterTable) {
             return true;
         }
         for(String str : filterChar) {

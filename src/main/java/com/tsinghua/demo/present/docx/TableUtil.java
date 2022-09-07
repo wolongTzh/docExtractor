@@ -29,13 +29,15 @@ public class TableUtil {
         if(pointSituation != null) {
             return pointSituation + "\n";
         }
-        // 特殊情况：左右结构的表格
-        String leftRightTable = leftRightTable(table);
-        if(leftRightTable != null) {
-            return leftRightTable + "\n";
-        }
-        String retText = "";
         List<XWPFTableRow> rows = table.getRows();
+        String retText = "";
+        // 特殊情况：左右结构的表格
+        if(leftRightTable(table)) {
+            for (int i = 0; i < rows.size(); i++) {
+                retText += leftRightTextOut(rows.get(i));
+            }
+            return retText + "\n";
+        }
         // 存在表头第一行有明显标题倾向的情况下也算是一个新的表格，不能连续
         if(consistancy) {
             consistancy = !judgeUniqueTitleName(rows.get(0));
@@ -56,9 +58,8 @@ public class TableUtil {
         for (int i = 0; i < rows.size(); i++) {
             XWPFTableRow row = rows.get(i);
             // 判断该行是否为左右结构
-            String leftRight = leftRight(row);
-            if(leftRight != null) {
-                retText += leftRight;
+            if(leftRight(row)) {
+                retText += leftRightTextOut(row);
                 continue;
             }
             //读取每一列数据
@@ -76,8 +77,17 @@ public class TableUtil {
             int widthAcc = 0;
             int curIndex = 0;
             String fstCol = "";
+            // 判断是否是标题
+            boolean judgeRow = false;
+            judgeRow = judgeTitle(row);
             // 遍历一行的每一列
             for (int j = 0; j < cells.size(); j++) {
+                // 特判：第一行就是左右结构的情况，通过第二行是独占一行来判断
+                // TODO：该种方法有可能存在问题，需要进一步确认
+                if(i == 0 && j == 0 && cells.size() <= 4 && cells.size() % 2 == 0 && rows.get(1).getTableICells().size() == 1) {
+                    retText += leftRightTextOut(row);
+                    break;
+                }
                 complicatedTitlePos = false;
                 XWPFTableCell cell = cells.get(j);
                 int width = cell.getWidth();
@@ -90,9 +100,9 @@ public class TableUtil {
                     tempWidth.put(j, width);
                 }
                 // 该行是内容行的情况
-                else if(cells.size() == titleRecorder.size() && !judgeTitle(row)) {
+                else if(cells.size() == titleRecorder.size() && !judgeRow) {
                     titlePos = false;
-                    if(text.equals("")) {
+                    if(text.equals("") || text.equals("-")) {
                         continue;
                     }
                     // 第一列信息为主要信息，需要拼到后面每一列
@@ -116,7 +126,7 @@ public class TableUtil {
                 // 该行是标题行，但不是第一行标题，需要逐渐填充
                 else {
                     // 一些不是标题行的特殊情况
-                    if(cells.size() == titleRecorder.size() || !judgeTitle(row)) {
+                    if(cells.size() != titleRecorder.size() && !judgeRow) {
                         continue;
                     }
                     // 上一行不是标题但是本行是标题，所以也是标题的开始
@@ -131,7 +141,12 @@ public class TableUtil {
                     String lastTitleText = titleRecorder.get(curIndex);
                     String curTitleText = lastTitleText;
                     if(!text.equals("")) {
-                        curTitleText = lastTitleText + "|" + text;
+                        if(lastTitleText.equals("")) {
+                            curTitleText = text;
+                        }
+                        else {
+                            curTitleText = lastTitleText + "|" + text;
+                        }
                     }
                     tempWidth.put(j, width);
                     tempTitle.add(curTitleText);
@@ -146,10 +161,34 @@ public class TableUtil {
                 titlePos = true;
             }
             // 过了一行标题后，进行更新
-            if(titlePos) {
+            if(titlePos && tempWidth.size() != 0) {
                 widthRecorder = tempWidth;
                 titleRecorder = tempTitle;
             }
+        }
+        return retText + "\n";
+    }
+
+    /**
+     * 直接markdown格式输出表格，并不对表格做任何的解析和文本的转化
+     * @param table
+     * @return
+     * @throws IOException
+     */
+    public String readTablePlain(XWPFTable table) throws IOException {
+
+        String retText = "";
+        List<XWPFTableRow> rows = table.getRows();
+        //遍历表体
+        for (int i = 0; i < rows.size(); i++) {
+            XWPFTableRow row = rows.get(i);
+            retText += "|";
+            List<XWPFTableCell> cells = row.getTableCells();
+            for (int j = 0; j < cells.size(); j++) {
+                XWPFTableCell cell = cells.get(j);
+                retText += " " + textFilterUtil.filterCharacters(cell.getText()) + " |";
+            }
+            retText += "\n";
         }
         return retText + "\n";
     }
@@ -184,62 +223,71 @@ public class TableUtil {
      * @param row
      * @return
      */
-    public String leftRight(XWPFTableRow row) {
-        String retText = "";
+    public boolean leftRight(XWPFTableRow row) {
         List<XWPFTableCell> cells = row.getTableCells();
         // 单元格数量需为2的倍数
         if(cells.size() % 2 != 0) {
-            return null;
+            return false;
         }
         String color = null;
+        boolean colorFormat = true;
         // 单元格背景颜色从左至右一个是黑一个是白
         for (int j = 0; j < cells.size(); j++) {
             XWPFTableCell cell = cells.get(j);
             if(Objects.equals(color, cell.getColor())) {
-                return null;
+                colorFormat = false;
             }
             color = cell.getColor();
         }
-        // 返回左右结构的拼接文本
-        for (int j = 0; j < cells.size(); j+=2) {
-            XWPFTableCell cell1 = cells.get(j);
-            XWPFTableCell cell2 = cells.get(j+1);
-            String cell1Text = textFilterUtil.filterCharacters(cell1.getText());
-            String cell2Text = textFilterUtil.filterCharacters(cell2.getText());
-            if(cell1Text.equals("") || cell2Text.equals("")) {
-                continue;
-            }
-            retText += "【" + cell1.getText() + " = " + cell2.getText() + "】\n";
-        }
-        return retText;
+        return colorFormat || leftRightWithoutColor(row);
     }
 
+
+    /**
+     * 判断是左右结构的行（不使用颜色信息判断）
+     * @param row
+     * @return
+     */
+    public boolean leftRightWithoutColor(XWPFTableRow row) {
+        List<XWPFTableCell> cells = row.getTableCells();
+        if(cells.size() == 2 && titleRecorder.size() > 2) {
+            return true;
+        }
+        return false;
+    }
     /**
      * 判断是纯左右结构的表格
      * @param table
      * @return
      */
-    public String leftRightTable(XWPFTable table) {
+    public boolean leftRightTable(XWPFTable table) {
         List<XWPFTableRow> rows = table.getRows();
         // 判断第一行标题行是否是标题，是标题就不是左右结构表格
         if(judgeTitleWithoutColor(rows.get(0))) {
-            return null;
+            return false;
         }
         String retText = "";
         boolean shortTag = false;
+        boolean longTag = false;
         // 判断每一行单元格数量，要求都是2的倍数且不能大于4且必须有两个单元格为一行的情况
         for (int i = 0; i < rows.size(); i++) {
             XWPFTableRow row = rows.get(i);
             List<XWPFTableCell> cells = row.getTableCells();
             if(cells.size() % 2 != 0 || cells.size() > 4) {
-                return null;
+                return false;
             }
-            if(cells.size() == 2) {
+            if(cells.size() == 4 && longTag) {
+                return false;
+            }
+            else if(cells.size() == 4) {
+                longTag = true;
+            }
+            else if(cells.size() == 2) {
                 shortTag = true;
             }
         }
         if(!shortTag) {
-            return null;
+            return false;
         }
         // 单元格如果有空值，那就不是左右结构表格了
         for (int i = 0; i < rows.size(); i++) {
@@ -248,21 +296,36 @@ public class TableUtil {
             for (int j = 0; j < cells.size(); j++) {
                 XWPFTableCell cell = cells.get(j);
                 if(cell.getText().equals("")) {
-                    return null;
+                    return false;
                 }
             }
         }
-        // 判断是左右结构表格，进行赋值
-        for (int i = 0; i < rows.size(); i++) {
-            XWPFTableRow row = rows.get(i);
-            List<XWPFTableCell> cells = row.getTableCells();
-            for (int j = 0; j < cells.size(); j+=2) {
-                XWPFTableCell cell1 = cells.get(j);
-                XWPFTableCell cell2 = cells.get(j+1);
-                String cell1Text = textFilterUtil.filterCharacters(cell1.getText());
-                String cell2Text = textFilterUtil.filterCharacters(cell2.getText());
-                retText += "【" + cell1Text + " = " + cell2Text + "】\n";
+        return true;
+    }
+
+
+    /**
+     * 输出左右结构情况下的文本
+     * @param row
+     * @return
+     */
+    public String leftRightTextOut(XWPFTableRow row) {
+        String retText = "";
+        // 返回左右结构的拼接文本
+        List<XWPFTableCell> cells = row.getTableCells();
+        for (int j = 0; j < cells.size(); j+=2) {
+            XWPFTableCell cell1 = cells.get(j);
+            XWPFTableCell cell2 = cells.get(j+1);
+            String cell1Text = textFilterUtil.filterCharacters(cell1.getText());
+            String cell2Text = textFilterUtil.filterCharacters(cell2.getText());
+            if(cell1Text.equals("") || cell2Text.equals("")) {
+                continue;
             }
+            String tempText = "【" + cell1.getText() + " = " + cell2.getText() + "】\n";
+//            if(!textFilterUtil.filterKeyWordTable(tempText)) {
+//                tempText = "";
+//            }
+            retText += tempText;
         }
         return retText;
     }
@@ -274,12 +337,16 @@ public class TableUtil {
      */
     public boolean judgeTitle(XWPFTableRow row) {
         List<XWPFTableCell> firstCells = row.getTableCells();
+        boolean colorFull = true;
         for (int j = 0; j < firstCells.size(); j++) {
             XWPFTableCell cell = firstCells.get(j);
             String color = cell.getColor();
             if(color == null) {
-                return false;
+                colorFull = false;
             }
+        }
+        if(colorFull) {
+            return true;
         }
         return judgeTitleWithoutColor(row);
     }
@@ -300,13 +367,13 @@ public class TableUtil {
             return true;
         }
         // 该行如果存在有空值的情况，就不是标题行
-        for (int j = 1; j < cells.size(); j++) {
-            XWPFTableCell cell = cells.get(j);
-            String text = cell.getText();
-            if(text.equals("")) {
-                return false;
-            }
-        }
+//        for (int j = 1; j < cells.size(); j++) {
+//            XWPFTableCell cell = cells.get(j);
+//            String text = cell.getText();
+//            if(text.equals("")) {
+//                return false;
+//            }
+//        }
         // 判断是否有特殊标题名称，有就是标题行
         return judgeUniqueTitleName(row);
     }
@@ -321,7 +388,7 @@ public class TableUtil {
         for (int j = 0; j < cells.size(); j++) {
             XWPFTableCell cell = cells.get(j);
             String text = cell.getText();
-            if(textFilterUtil.filterCharacters(text).equals("项目") || textFilterUtil.filterCharacters(text).equals("金额")) {
+            if(textFilterUtil.filterCharacters(text).equals("项目") || textFilterUtil.filterCharacters(text).equals("股东名称")) {
                 return true;
             }
         }
