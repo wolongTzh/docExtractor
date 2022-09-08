@@ -58,7 +58,8 @@ public class TableUtil {
         for (int i = 0; i < rows.size(); i++) {
             XWPFTableRow row = rows.get(i);
             // 判断该行是否为左右结构
-            if(leftRight(row)) {
+            boolean leftRightTag = leftRight(row);
+            if(leftRightTag && i == 0 || leftRightTag && !titlePos) {
                 retText += leftRightTextOut(row);
                 continue;
             }
@@ -84,7 +85,7 @@ public class TableUtil {
             for (int j = 0; j < cells.size(); j++) {
                 // 特判：第一行就是左右结构的情况，通过第二行是独占一行来判断
                 // TODO：该种方法有可能存在问题，需要进一步确认
-                if(i == 0 && j == 0 && cells.size() <= 4 && cells.size() % 2 == 0 && rows.get(1).getTableICells().size() == 1) {
+                if(i == 0 && j == 0 && cells.size() <= 4 && cells.size() % 2 == 0 && rows.size() > 1 && rows.get(1).getTableICells().size() == 1) {
                     retText += leftRightTextOut(row);
                     break;
                 }
