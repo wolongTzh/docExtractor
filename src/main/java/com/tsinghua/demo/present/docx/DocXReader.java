@@ -5,10 +5,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
+import java.io.*;
 import java.util.Arrays;
 import java.util.List;
 
@@ -17,18 +14,20 @@ public class DocXReader {
     static TextFilterUtil textFilterUtil = new TextFilterUtil();
     static TableUtil tableUtil = new TableUtil();
     static int paraCountThreshold = 100;
+    static int charCountThreshold = 1500;
+    static int charCountThresholdMax = 2000;
 
     public static void main(String[] args) throws Exception {
 
-        singelGeneartor();
-//        batchGenerator();
+//        singelGeneartor();
+        batchGenerator();
     }
 
     /**
      * 转化单篇文档
      */
     public static void singelGeneartor() {
-        String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\1.docx";
+        String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\7.docx";
         String outputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\ExtractedTable.txt";
         distributor(inputPath, outputPath);
     }
@@ -37,14 +36,19 @@ public class DocXReader {
      * 批量生成文档
      */
     public static void batchGenerator() {
+        String sourcePath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\txt文档\\";
         String basePath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\output\\";
-        File file1 = new File(basePath);
+        File file1 = new File(sourcePath);
+        int count = 1;
         //判断是否有目录
         if(file1.isDirectory()) {
             //获取目录中的所有文件名称
             String[] fileName = file1.list();
             for(String str : fileName) {
-                distributor(basePath + str, basePath + str.replace("docx", "txt"));
+                File file2 = new File(basePath + count + "\\");
+                file2.mkdir();
+                distributor(basePath + str, basePath + count + "\\");
+                count++;
             }
         }
     }
@@ -54,7 +58,7 @@ public class DocXReader {
      * @param filePath 文件路径
      * @return
      */
-    public static void distributor(String filePath, String outputPath){
+    public static void distributor(String filePath, String basePath){
         try{
             if(!filePath.endsWith(".docx")) {
                 return;
@@ -74,11 +78,12 @@ public class DocXReader {
             boolean pageStartTag = true;
             // 表示当前行为文本，这样来判断后面表格的连续性
             boolean paraTag = true;
-            FileWriter fileWriter = new FileWriter(outputPath);
             StringBuilder builder = new StringBuilder();
             StringBuilder innerBuilder = new StringBuilder();
             // 过滤需要的
             int countPara = 0;
+            int countChar = 0;
+            int fileCount = 1;
             for(IBodyElement element : xwpf.getBodyElements()) {
                 if(element instanceof XWPFParagraph) {
                     XWPFParagraph para = (XWPFParagraph) element;
@@ -136,13 +141,21 @@ public class DocXReader {
                     // 是标题的情况：前一行比当前行字号小，或者前一行大于当前行大于下一行
                     if(judge == JudgeFontSizeEnum.TITILE_TAG) {
                         if(!content.equals("")) {
-                            if(countPara >= paraCountThreshold) {
-                                if(textFilterUtil.filterKeyWord(innerBuilder.toString())) {
-                                    builder.append(innerBuilder);
+                            if(countChar >= charCountThreshold) {
+                                if(innerBuilder.length() >= charCountThresholdMax) {
+                                    fileCount = splitPara(innerBuilder.toString(), basePath, fileCount);
+                                }
+                                else {
+                                    FileWriter fileWriter = new FileWriter(basePath + fileCount + ".txt");
+                                    fileWriter.write(innerBuilder.toString());
+                                    fileWriter.flush();
+                                    fileWriter.close();
                                 }
                                 innerBuilder.delete(0, innerBuilder.length());
-                                countPara = 0;
+                                countChar = 0;
+                                fileCount++;
                             }
+                            countChar += content.length() + 1;
                             innerBuilder.append(content + "\n");
                         }
                         content = "";
@@ -151,6 +164,7 @@ public class DocXReader {
                     // 是内容的情况：前一行比当前行字号大或者判断不出来的情况（"其它情况"目前都视为内容了）
                     else {
                         if(!title.equals("")) {
+                            countChar += title.length() + 1;
                             innerBuilder.append(title + "\n");
                         }
                         title = "";
@@ -170,25 +184,61 @@ public class DocXReader {
                     }
                     title = "";
                     paraTag = false;
-                    if(textFilterUtil.filterKeyWord(innerBuilder.toString())) {
-                        builder.append(innerBuilder);
-                    }
-                    innerBuilder.delete(0, innerBuilder.length());
                     countPara = 0;
                     if(text == null || textFilterUtil.filterCharacters(text).equals("")) {
                         continue;
                     }
-                    builder.append(text);
+                    countChar += text.length();
+                    innerBuilder.append(text);
+                    if(innerBuilder.length() >= charCountThreshold) {
+                        if(innerBuilder.length() >= charCountThresholdMax) {
+                            fileCount = splitPara(innerBuilder.toString(), basePath, fileCount);
+                        }
+                        else {
+                            FileWriter fileWriter = new FileWriter(basePath + fileCount + ".txt");
+                            fileWriter.write(innerBuilder.toString());
+                            fileWriter.flush();
+                            fileWriter.close();
+                        }
+                        innerBuilder.delete(0, innerBuilder.length());
+                        countChar = 0;
+                        fileCount++;
+                    }
 //                    System.out.println(text);
                 }
             }
-            fileWriter.write(builder.toString());
-            fileWriter.flush();
-            fileWriter.close();
 
         }catch(Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static int splitPara(String str, String basePath, int fileCount) throws IOException {
+        String[] splitter = str.split("\n");
+        int count = 0;
+        StringBuilder builder = new StringBuilder();
+        for(String s : splitter) {
+            count += s.length();
+            builder.append(s + "\n");
+            if(count >= charCountThreshold) {
+                FileWriter fileWriter = new FileWriter(basePath + fileCount + ".txt");
+                fileWriter.write(builder.toString());
+                fileWriter.flush();
+                fileWriter.close();
+                builder.delete(0, builder.length());
+                fileCount++;
+                count = 0;
+            }
+        }
+        if(builder.length() > 0) {
+            FileWriter fileWriter = new FileWriter(basePath + fileCount + ".txt");
+            fileWriter.write(builder.toString());
+            fileWriter.flush();
+            fileWriter.close();
+            builder.delete(0, builder.length());
+            fileCount++;
+        }
+        return fileCount;
     }
 
     public static void testPrint(String filePath, String outputPath){

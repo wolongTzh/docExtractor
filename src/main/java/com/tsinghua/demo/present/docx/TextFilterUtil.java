@@ -18,7 +18,7 @@ public class TextFilterUtil {
     int contentTag = -2;
     int unknown = 0;
     // 文档过滤开关
-    boolean startFilter = true;
+    boolean startFilter = false;
     boolean startFilterTable = true;
     int pairCountPor = 500;
 
