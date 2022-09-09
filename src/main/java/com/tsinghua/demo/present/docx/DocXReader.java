@@ -20,8 +20,8 @@ public class DocXReader {
 
     public static void main(String[] args) throws Exception {
 
-        singelGeneartor();
-//        batchGenerator();
+//        singelGeneartor();
+        batchGenerator();
     }
 
     /**
@@ -37,7 +37,7 @@ public class DocXReader {
      * 批量生成文档
      */
     public static void batchGenerator() {
-        String basePath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\output\\";
+        String basePath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\txt文档\\";
         File file1 = new File(basePath);
         //判断是否有目录
         if(file1.isDirectory()) {
@@ -89,7 +89,7 @@ public class DocXReader {
                     // 文章开始，第一行作为标题加上，写死了
                     if(pageStartTag) {
                         String text = textFilterUtil.readText(para);
-                        title += "《" + text + "》\n";
+                        title += "《《" + text + "》》\n";
                         pageStartTag = false;
                     }
                     // 装载连续的三行
@@ -146,7 +146,7 @@ public class DocXReader {
                             innerBuilder.append(content + "\n");
                         }
                         content = "";
-                        title += "《" + text + "》\n";
+                        title += "《《" + text + "》》\n";
                     }
                     // 是内容的情况：前一行比当前行字号大或者判断不出来的情况（"其它情况"目前都视为内容了）
                     else {

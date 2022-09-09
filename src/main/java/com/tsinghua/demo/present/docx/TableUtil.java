@@ -117,7 +117,7 @@ public class TableUtil {
                     }
                     // 其它列的信息需要和第一列进行拼接
                     else {
-                        String tempAdd = "【" + fstCol + "——" + titleRecorder.get(j) + ":" + text + "】\n";
+                        String tempAdd = "【【" + fstCol + "——" + titleRecorder.get(j) + ":" + text + "】】\n";
                         if(!textFilterUtil.filterKeyWordTable(tempAdd)) {
                             continue;
                         }
@@ -214,7 +214,7 @@ public class TableUtil {
         String ret = "";
         for (int i = 1; i < rows.size(); i++) {
             XWPFTableRow row = rows.get(i);
-            ret += "【" + row.getTableCells().get(0).getText() + " = " + row.getTableCells().get(2).getText() + "】\n";
+            ret += "【【" + row.getTableCells().get(0).getText() + " = " + row.getTableCells().get(2).getText() + "】】\n";
         }
         return ret;
     }
@@ -322,7 +322,7 @@ public class TableUtil {
             if(cell1Text.equals("") || cell2Text.equals("")) {
                 continue;
             }
-            String tempText = "【" + cell1.getText() + " = " + cell2.getText() + "】\n";
+            String tempText = "【【" + cell1.getText() + " = " + cell2.getText() + "】】\n";
 //            if(!textFilterUtil.filterKeyWordTable(tempText)) {
 //                tempText = "";
 //            }
