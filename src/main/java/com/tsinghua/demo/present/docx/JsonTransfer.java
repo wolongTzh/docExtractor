@@ -14,6 +14,7 @@ public class JsonTransfer {
     static List<String> paraSplitTag = Arrays.asList("《《");
     static List<String> endTags = Arrays.asList("】】","。");
     static int charNumMaxLimit = 2000;
+    static int maxEntity = 4;
 
     public static void main(String[] args) throws Exception {
 
@@ -32,6 +33,7 @@ public class JsonTransfer {
         int finalBorderRight = 0;
         int finalBorderContentLeftIndex = 0;
         int finalBorderContentRightIndex = 0;
+        int entityNum = 0;
         for(int i=0; i<relations.size(); i++) {
             JSONObject relation = relations.getJSONObject(i);
             String fromId = relation.getString("from_id");
@@ -81,30 +83,32 @@ public class JsonTransfer {
                     break;
                 }
             }
+            int tempFinalBorderRight = finalBorderRight;
             if(titleBorderLeft < finalBorderLeft) {
                 finalBorderLeft = titleBorderLeft;
-                finalBorderContentLeftIndex = contentBorderLeftIndex;
             }
             if(titleBorderRight > finalBorderRight) {
-                finalBorderRight = titleBorderRight;
-                finalBorderContentRightIndex = contentBorderRightIndex;
+                tempFinalBorderRight = titleBorderRight;
             }
-            boolean left = true;
-            finalBorderContentLeftIndex--;
-            finalBorderContentRightIndex++;
+            contentBorderRightIndex++;
+            titleBorderRightIndex++;
             // TODO: 不能毫无考虑的缩，如果缩到把之前的实体给丢了的情况，就不缩了，直接就用原来的scale输出了。如果之前就没实体，那就看一下句子之间能不能走，不能走就不要了，能走就单走。
-            if(finalBorderRight - finalBorderLeft > charNumMaxLimit) {
-                while(finalBorderRight - finalBorderLeft > charNumMaxLimit) {
-                    if(left) {
-                        finalBorderLeft = sentLs.get(++finalBorderContentLeftIndex);
-                        left = !left;
+            if(tempFinalBorderRight - finalBorderLeft > charNumMaxLimit) {
+                if(entityNum >= maxEntity) {
+                    while(tempFinalBorderRight - finalBorderLeft > charNumMaxLimit && tempFinalBorderRight >= end) {
+                        tempFinalBorderRight = sentLs.get(--contentBorderRightIndex);
                     }
-                    else {
-                        finalBorderRight = sentLs.get(--finalBorderContentRightIndex);
+                    // 不能把实体给缩没了
+                    if(tempFinalBorderRight >= end) {
+                        finalBorderRight = tempFinalBorderRight;
                     }
                 }
                 finalBorderLeft = text.length();
                 finalBorderRight = 0;
+            }
+            else {
+                finalBorderRight = tempFinalBorderRight;
+                entityNum++;
             }
         }
     }
