@@ -20,8 +20,8 @@ public class DocXReader {
 
     public static void main(String[] args) throws Exception {
 
-//        singelGeneartor();
-        batchGenerator();
+        singelGeneartor();
+//        batchGenerator();
     }
 
     /**

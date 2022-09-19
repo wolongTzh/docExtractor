@@ -14,22 +14,31 @@ import java.util.stream.Collectors;
 
 public class JsonTransfer {
 
+    // 段落开始标志和单句话结束标志，用来分句和分段
     static List<String> paraSplitTag = Arrays.asList("《");
     static List<String> endTags = Arrays.asList("】","。");
+    // 最大字符限制长度
     static int charNumMaxLimit = 2000;
+    // 单段落内不得小于这么多的实体，该阈值用于界定两种策略的偏向性
     static int maxEntity = 4;
+    // 代表该关系是用来表示共指
     static String commonEntityRelation = "指代";
+    // 用来寻找题集外部实体的起始id，需要是一个其它部分都没用过的id
     static Integer maxId = 0;
     static String basePath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\output\\";
+    // 收缩策略参数，如果为true说明实体密集度更大，为false则是文档段落完整性更好
+    static boolean compressStrategy = true;
+    // 统计一共有多少种关系
+    static int relationCount = 0;
 
     public static void main(String[] args) throws Exception {
 
-//        singleTransfer();
-        batchTransfer();
+        singleTransfer();
+//        batchTransfer();
     }
 
     public static void singleTransfer() throws IOException {
-        String jsonPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\source\\04：神州高铁.jsonl";
+        String jsonPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\source\\01：平安银行.jsonl";
         JSONObject json = readJson(jsonPath);
         String text = json.getString("text");
         List<Integer> titleLs = splitPara(text, paraSplitTag, true);
@@ -131,9 +140,11 @@ public class JsonTransfer {
             contentBorderRightIndex++;
             contentBorderLeftIndex--;
             boolean scaleOk = false;
-            // TODO: 不能毫无考虑的缩，如果缩到把之前的实体给丢了的情况，就不缩了，直接就用原来的scale输出了。如果之前就没实体，那就看一下句子之间能不能走，不能走就不要了，能走就单走。
+            // 边界之间的距离超过最大字符长度限制，需要缩减段落或回滚状态。
             if(tempFinalBorderRight - tempFinalBorderLeft > charNumMaxLimit) {
+                // 根据阈值判断，执行策略二
                 if(relationNum + 1 < maxEntity) {
+                    // 先从下边界往上缩减句子进行尝试
                     while(tempFinalBorderRight - tempFinalBorderLeft > charNumMaxLimit && tempFinalBorderRight >= end) {
                         if(tempFinalBorderRight >= end) {
                             tempFinalBorderRight = sentLs.get(--contentBorderRightIndex);
@@ -143,6 +154,7 @@ public class JsonTransfer {
                     if(tempFinalBorderRight >= end) {
                         scaleOk = true;
                     }
+                    // 下边界网上缩不行了，需要上边界往下缩
                     if(!scaleOk) {
                         tempFinalBorderRight = sentLs.get(++contentBorderRightIndex);
                         while(tempFinalBorderRight - tempFinalBorderLeft > charNumMaxLimit && tempFinalBorderLeft <= start) {
@@ -150,27 +162,33 @@ public class JsonTransfer {
                                 tempFinalBorderLeft = sentLs.get(++contentBorderLeftIndex);
                             }
                         }
+                        // 不能把实体给缩没了
                         if(tempFinalBorderLeft <= start) {
                             scaleOk = true;
                         }
                     }
+                    // 句子缩减策略成功，更新边界值
                     if(scaleOk) {
                         finalBorderLeft = tempFinalBorderLeft;
                         finalBorderRight = tempFinalBorderRight;
-//                        relationNum++;
-//                        continue;
+                        // 确定句子缩减成功后继续根据这个段落长度去扩下一个实体还是直接写json了
+                        if(compressStrategy) {
+                            relationNum++;
+                            continue;
+                        }
                     }
                 }
+                // 句子缩减策略失败，回滚到上一状态（策略一）
                 if(!scaleOk) {
                     entityList.remove(entityList.size() - 1);
                     entityList.remove(entityList.size() - 1);
                     relationList.remove(relationList.size() - 1);
                 }
                 innerCount++;
+                // 确定了一段的实体关系和文本，生成该对应json文件
                 generateParaData(relationList, entityList, finalBorderLeft, finalBorderRight, text, basePath + dirName + innerCount + ".json");
-                if(innerCount == 8) {
-                    System.out.println();
-                }
+                System.out.println(relationCount);
+                // 信息重置
                 relationList.clear();
                 entityList.clear();
                 finalBorderLeft = text.length();
@@ -179,12 +197,14 @@ public class JsonTransfer {
                 start = Integer.MAX_VALUE;
                 end = 0;
             }
+            // 根据阈值判断，执行策略一
             else {
                 finalBorderRight = tempFinalBorderRight;
                 finalBorderLeft = tempFinalBorderLeft;
                 relationNum++;
             }
         }
+
     }
 
     public static void generateParaData(List<Relation> relations, List<Entity> paramEntityList, int borderLeft, int borderRight, String text, String outPath) throws IOException {
@@ -263,6 +283,7 @@ public class JsonTransfer {
                 finalRelations.add(relation);
             }
         }
+        relationCount += finalRelations.size();
         paraData.setEntities(commonEntityList);
         paraData.setRelations(finalRelations);
         String output = JSONObject.toJSONString(paraData);

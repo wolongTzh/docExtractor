@@ -12,6 +12,8 @@ public class TableUtil {
     TextFilterUtil textFilterUtil = new TextFilterUtil();
     Map<Integer, Integer> widthRecorder = new HashMap<>();
     List<String> titleRecorder = new ArrayList<>();
+    // 表格最上面生成一行文本，用于方便做关系标注
+    String tableHair = "本企业";
 
     /**
      * 读取表格格式
@@ -24,13 +26,14 @@ public class TableUtil {
         if(textFilterUtil.filterChar.size() == 0) {
             textFilterUtil.init();
         }
+        String retText = tableHair;
         // 特殊情况：A 指 B
         String pointSituation = pointSituation(table);
         if(pointSituation != null) {
-            return pointSituation + "\n";
+            return retText +  "\n" + pointSituation + "\n";
         }
         List<XWPFTableRow> rows = table.getRows();
-        String retText = "";
+
         // 特殊情况：左右结构的表格
         if(leftRightTable(table)) {
             for (int i = 0; i < rows.size(); i++) {
@@ -166,6 +169,9 @@ public class TableUtil {
                 widthRecorder = tempWidth;
                 titleRecorder = tempTitle;
             }
+        }
+        if(retText.equals("本企业") || retText.equals("本企业\n")) {
+            retText = "";
         }
         return retText + "\n";
     }
