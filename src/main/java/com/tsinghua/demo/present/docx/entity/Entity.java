@@ -6,6 +6,8 @@ public class Entity {
 
     String id;
 
+    Integer sentId;
+
     String label;
 
     Integer startOffset;
@@ -32,6 +34,14 @@ public class Entity {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public Integer getSentId() {
+        return sentId;
+    }
+
+    public void setSentId(Integer sentId) {
+        this.sentId = sentId;
     }
 
     public String getLabel() {
