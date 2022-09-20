@@ -3,12 +3,8 @@ package com.tsinghua.demo.present.docx;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.*;
+import java.util.*;
 
 public class TextFilterUtil {
 
@@ -21,6 +17,9 @@ public class TextFilterUtil {
     boolean startFilter = true;
     boolean startFilterTable = true;
     int pairCountPor = 500;
+    Map<String, String> wordsReflection = new HashMap<>();
+    Map<String, Integer> mainWordsCount = new HashMap<>();
+    Map<String, Map<String, Integer>> otherWordsCount = new HashMap<>();
 
     /**
      * 初始化关键词词典
@@ -30,8 +29,18 @@ public class TextFilterUtil {
         File file = new File("C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\filterTag.txt");
         BufferedReader br = new BufferedReader(new FileReader(file));//构造一个BufferedReader类来读取文件
         String s = null;
+        String curCoreWord = "";
         while((s = br.readLine())!=null) {//使用readLine方法，一次读一行
-            filterChar.add(s);
+            if(s.charAt(0) == '【') {
+                curCoreWord = s;
+            }
+            else {
+                wordsReflection.putIfAbsent(s, "");
+                wordsReflection.put(s, wordsReflection.get(s) + "&" + curCoreWord);
+                if(!filterChar.contains(s)) {
+                    filterChar.add(s);
+                }
+            }
         }
     }
 
@@ -152,6 +161,7 @@ public class TextFilterUtil {
      * @return
      */
     public boolean filterKeyWord(String content) {
+        statistic(content);
         if(!startFilter) {
             return true;
         }
@@ -189,6 +199,7 @@ public class TextFilterUtil {
      * @return
      */
     public boolean filterKeyWordTable(String content) {
+        statistic(content);
         if(!startFilterTable) {
             return true;
         }
@@ -229,5 +240,74 @@ public class TextFilterUtil {
             return null;
         }
         return text;
+    }
+
+    public void statistic(String content) {
+        String curContent = content;
+        int count = 0;
+        for(String s : filterChar) {
+            curContent = content;
+            count = 0;
+            while (true) {
+                int index = curContent.indexOf(s);
+                if(index == -1) {
+                    break;
+                }
+                else {
+                    curContent = curContent.substring(index + s.length());
+                    count++;
+                }
+            }
+            if(count != 0) {
+                String mainWordRaw = wordsReflection.get(s);
+                String[] mainWords = mainWordRaw.split("&");
+                for(String mainWord : mainWords) {
+                    if(mainWord.equals("")) {
+                        continue;
+                    }
+                    mainWordsCount.putIfAbsent(mainWord, 0);
+                    mainWordsCount.put(mainWord, mainWordsCount.get(mainWord) + 1);
+                    otherWordsCount.putIfAbsent(mainWord, new HashMap<>());
+                    Map<String, Integer> innerMap = otherWordsCount.get(mainWord);
+                    innerMap.putIfAbsent(s, 0);
+                    innerMap.put(s, innerMap.get(s) + 1);
+                    otherWordsCount.put(mainWord, innerMap);
+                }
+            }
+        }
+    }
+
+    public void writeStatistic(String outPath) throws IOException {
+        FileWriter fileWriter = new FileWriter(outPath);
+        StringBuilder builder = new StringBuilder();
+        Comparator<Map.Entry<String, Integer>> valueComparator = new Comparator<Map.Entry<String,Integer>>() {
+            @Override
+            public int compare(Map.Entry<String, Integer> o1,
+                               Map.Entry<String, Integer> o2) {
+                // TODO Auto-generated method stub
+                return o2.getValue()-o1.getValue();
+            }
+        };
+        // map转换成list进行排序
+        List<Map.Entry<String, Integer>> list = new ArrayList<Map.Entry<String,Integer>>(mainWordsCount.entrySet());
+        // 排序
+        Collections.sort(list,valueComparator);
+        for(Map.Entry entry : list) {
+            String mainWord = (String) entry.getKey();
+            Integer mainCount = (Integer) entry.getValue();
+            builder.append(mainWord + "\t" + mainCount + "次\n");
+            Map<String, Integer> innerMap = otherWordsCount.get(mainWord);
+            for(Map.Entry innerEntry : innerMap.entrySet()) {
+                String otherWord = (String) innerEntry.getKey();
+                Integer count = (Integer) innerEntry.getValue();
+                builder.append(otherWord + "\t" + count + "次\n");
+            }
+            builder.append("\n");
+        }
+        fileWriter.write(builder.toString());
+        fileWriter.flush();
+        fileWriter.close();
+        mainWordsCount.clear();
+        otherWordsCount.clear();
     }
 }

@@ -20,8 +20,8 @@ public class DocXReader {
 
     public static void main(String[] args) throws Exception {
 
-        singelGeneartor();
-//        batchGenerator();
+//        singelGeneartor();
+        batchGenerator();
     }
 
     /**
@@ -30,7 +30,8 @@ public class DocXReader {
     public static void singelGeneartor() {
         String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\1.docx";
         String outputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\ExtractedTable.txt";
-        distributor(inputPath, outputPath);
+        String statisticOutPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\ExtractedTable-统计.txt";
+        distributor(inputPath, outputPath, statisticOutPath);
     }
 
     /**
@@ -44,7 +45,7 @@ public class DocXReader {
             //获取目录中的所有文件名称
             String[] fileName = file1.list();
             for(String str : fileName) {
-                distributor(basePath + str, basePath + str.replace("docx", "txt"));
+                distributor(basePath + str, basePath + str.replace("docx", "txt"), basePath + str.split(".docx")[0] + "-统计信息.txt");
             }
         }
     }
@@ -54,7 +55,7 @@ public class DocXReader {
      * @param filePath 文件路径
      * @return
      */
-    public static void distributor(String filePath, String outputPath){
+    public static void distributor(String filePath, String outputPath, String statisticOutPath){
         try{
             if(!filePath.endsWith(".docx")) {
                 return;
@@ -185,7 +186,7 @@ public class DocXReader {
             fileWriter.write(builder.toString());
             fileWriter.flush();
             fileWriter.close();
-
+            textFilterUtil.writeStatistic(statisticOutPath);
         }catch(Exception e) {
             e.printStackTrace();
         }
