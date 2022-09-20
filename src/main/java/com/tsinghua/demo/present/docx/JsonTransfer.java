@@ -34,11 +34,13 @@ public class JsonTransfer {
     static int relationCount = 0;
     // 合并成一个json输出还是分别输出
     static boolean splitOut = false;
+    // 记录关系出现次数的统计信息map
+    static Map<String, Integer> relationCountMap = new HashMap<>();
 
     public static void main(String[] args) throws Exception {
 
-//        singleTransfer();
-        batchTransfer();
+        singleTransfer();
+//        batchTransfer();
     }
 
     public static void singleTransfer() throws IOException {
@@ -50,6 +52,7 @@ public class JsonTransfer {
         List<ParaData> paraDataList = pointToScale(titleLs, sentLs, text, json, "test");
         if(!splitOut) {
             outputFile(JSONObject.toJSONString(paraDataList), basePath + "test\\out.json");
+            writeStatistic(basePath + "统计信息.txt");
         }
     }
 
@@ -86,6 +89,7 @@ public class JsonTransfer {
         }
         if(!splitOut) {
             outputFile(JSONObject.toJSONString(outputList), basePath + "out.json");
+            writeStatistic(basePath + "统计信息.txt");
         }
     }
 
@@ -209,6 +213,9 @@ public class JsonTransfer {
                             continue;
                         }
                     }
+                }
+                else {
+                    i--;
                 }
                 // 句子缩减策略失败，回滚到上一状态（策略一）
                 if(!scaleOk) {
@@ -334,6 +341,8 @@ public class JsonTransfer {
                 relation.setFromId(startEntity.getParentId());
                 relation.setToId(endEntity.getParentId());
                 finalRelations.add(relation);
+                relationCountMap.putIfAbsent(relation.getType(), 0);
+                relationCountMap.put(relation.getType(), relationCountMap.get(relation.getType()) + 1);
             }
         }
         // 准备输出文件
@@ -431,6 +440,31 @@ public class JsonTransfer {
         file.createNewFile();
         FileWriter fileWriter = new FileWriter(file);
         fileWriter.write(output);
+        fileWriter.flush();
+        fileWriter.close();
+    }
+
+    public static void writeStatistic(String outPath) throws IOException {
+        FileWriter fileWriter = new FileWriter(outPath);
+        StringBuilder builder = new StringBuilder();
+        Comparator<Map.Entry<String, Integer>> valueComparator = new Comparator<Map.Entry<String,Integer>>() {
+            @Override
+            public int compare(Map.Entry<String, Integer> o1,
+                               Map.Entry<String, Integer> o2) {
+                // TODO Auto-generated method stub
+                return o2.getValue()-o1.getValue();
+            }
+        };
+        // map转换成list进行排序
+        List<Map.Entry<String, Integer>> list = new ArrayList<Map.Entry<String,Integer>>(relationCountMap.entrySet());
+        // 排序
+        Collections.sort(list,valueComparator);
+        for(Map.Entry entry : list) {
+            String word = (String) entry.getKey();
+            Integer count = (Integer) entry.getValue();
+            builder.append(word + "\t" + count + "次\n");
+        }
+        fileWriter.write(builder.toString());
         fileWriter.flush();
         fileWriter.close();
     }
