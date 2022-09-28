@@ -5,10 +5,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
+import java.io.*;
 import java.util.Arrays;
 import java.util.List;
 
@@ -20,6 +17,8 @@ public class DocXReader {
 
     public static void main(String[] args) throws Exception {
 
+        // 过滤信息用的信息初始化
+        textFilterUtil.init();
 //        singelGeneartor();
         batchGenerator();
     }
@@ -31,13 +30,13 @@ public class DocXReader {
         String inputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\1.docx";
         String outputPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\ExtractedTable.txt";
         String statisticOutPath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\test\\ExtractedTable-统计.txt";
-        distributor(inputPath, outputPath, statisticOutPath);
+        distributor(inputPath, outputPath, statisticOutPath, "ExtractedTable");
     }
 
     /**
      * 批量生成文档
      */
-    public static void batchGenerator() {
+    public static void batchGenerator() throws IOException {
         String basePath = "C:\\Users\\FEIFEI\\Desktop\\金融知识图谱项目\\txt文档\\";
         File file1 = new File(basePath);
         //判断是否有目录
@@ -45,9 +44,10 @@ public class DocXReader {
             //获取目录中的所有文件名称
             String[] fileName = file1.list();
             for(String str : fileName) {
-                distributor(basePath + str, basePath + str.replace("docx", "txt"), basePath + str.split(".docx")[0] + "-统计信息.txt");
+                distributor(basePath + str, basePath + str.replace("docx", "txt"), basePath + str.split(".docx")[0] + "-统计信息.txt", str.replace("docx", "txt"));
             }
         }
+        textFilterUtil.writeFinalStatistic(basePath + "finalStatistic.txt");
     }
 
     /**
@@ -55,13 +55,11 @@ public class DocXReader {
      * @param filePath 文件路径
      * @return
      */
-    public static void distributor(String filePath, String outputPath, String statisticOutPath){
+    public static void distributor(String filePath, String outputPath, String statisticOutPath, String fileName){
         try{
             if(!filePath.endsWith(".docx")) {
                 return;
             }
-            // 过滤信息用的信息初始化
-            textFilterUtil.init();
             FileInputStream in = new FileInputStream(filePath);//载入文档
             XWPFDocument xwpf = new XWPFDocument(in);//得到word文档的信息
             // 三个连续行判断字号确定是否是标题
@@ -186,7 +184,7 @@ public class DocXReader {
             fileWriter.write(builder.toString());
             fileWriter.flush();
             fileWriter.close();
-            textFilterUtil.writeStatistic(statisticOutPath);
+            textFilterUtil.writeStatistic(statisticOutPath, fileName);
         }catch(Exception e) {
             e.printStackTrace();
         }

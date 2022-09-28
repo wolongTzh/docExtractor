@@ -19,7 +19,9 @@ public class TextFilterUtil {
     int pairCountPor = 500;
     Map<String, String> wordsReflection = new HashMap<>();
     Map<String, Integer> mainWordsCount = new HashMap<>();
+    List<String> mainWordsList = new ArrayList<>();
     Map<String, Map<String, Integer>> otherWordsCount = new HashMap<>();
+    Map<String, Map<String, Integer>> allDocStatistic = new HashMap<>();
 
     /**
      * 初始化关键词词典
@@ -33,6 +35,7 @@ public class TextFilterUtil {
         while((s = br.readLine())!=null) {//使用readLine方法，一次读一行
             if(s.charAt(0) == '【') {
                 curCoreWord = s;
+                mainWordsList.add(s);
             }
             else {
                 wordsReflection.putIfAbsent(s, "");
@@ -277,7 +280,7 @@ public class TextFilterUtil {
         }
     }
 
-    public void writeStatistic(String outPath) throws IOException {
+    public void writeStatistic(String outPath, String fileName) throws IOException {
         FileWriter fileWriter = new FileWriter(outPath);
         StringBuilder builder = new StringBuilder();
         Comparator<Map.Entry<String, Integer>> valueComparator = new Comparator<Map.Entry<String,Integer>>() {
@@ -307,7 +310,40 @@ public class TextFilterUtil {
         fileWriter.write(builder.toString());
         fileWriter.flush();
         fileWriter.close();
+        allDocStatistic.put(fileName, new HashMap<>(mainWordsCount));
         mainWordsCount.clear();
         otherWordsCount.clear();
+    }
+
+    public void writeFinalStatistic(String outPath) throws IOException {
+        FileWriter fileWriter = new FileWriter(outPath);
+        StringBuilder builder = new StringBuilder();
+        Map<String, Integer> out = new HashMap<>();
+        Comparator<Map.Entry<String, Integer>> valueComparator = new Comparator<Map.Entry<String,Integer>>() {
+            @Override
+            public int compare(Map.Entry<String, Integer> o1,
+                               Map.Entry<String, Integer> o2) {
+                // TODO Auto-generated method stub
+                return o2.getValue()-o1.getValue();
+            }
+        };
+        for(String relationName : mainWordsList) {
+            for(Map.Entry innerEntry : allDocStatistic.entrySet()) {
+                String fileName = (String)innerEntry.getKey();
+                Map<String, Integer> singleDoc = (Map<String, Integer>)innerEntry.getValue();
+                out.put(fileName, singleDoc.getOrDefault(relationName, 0));
+            }
+            List<Map.Entry<String, Integer>> list = new ArrayList<Map.Entry<String,Integer>>(out.entrySet());
+            Collections.sort(list,valueComparator);
+            builder.append(relationName + ":\n");
+            for(int i=0; i<10; i++) {
+                int index = i + 1;
+                builder.append("top" + index + ": 来自文档：" + list.get(i).getKey() + " 出现次数：" + list.get(i).getValue() + "\n");
+            }
+            builder.append("\n");
+        }
+        fileWriter.write(builder.toString());
+        fileWriter.flush();
+        fileWriter.close();
     }
 }

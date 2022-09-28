@@ -39,8 +39,8 @@ public class JsonTransfer {
 
     public static void main(String[] args) throws Exception {
 
-        singleTransfer();
-//        batchTransfer();
+//        singleTransfer();
+        batchTransfer();
     }
 
     public static void singleTransfer() throws IOException {

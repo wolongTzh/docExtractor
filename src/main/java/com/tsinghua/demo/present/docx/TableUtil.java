@@ -37,7 +37,7 @@ public class TableUtil {
         // 特殊情况：左右结构的表格
         if(leftRightTable(table)) {
             for (int i = 0; i < rows.size(); i++) {
-                retText += leftRightTextOut(rows.get(i));
+                retText += "\n" + leftRightTextOut(rows.get(i));
             }
             return retText + "\n";
         }
