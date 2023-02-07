@@ -8,7 +8,9 @@ import com.spire.pdf.utilities.PdfTableExtractor;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
+import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
 
 import java.awt.geom.Point2D;
 import java.io.File;
@@ -16,6 +18,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.List;
 
 public class PdfExtractor {
 
@@ -30,7 +33,7 @@ public class PdfExtractor {
             String[] fileName = file1.list();
             Arrays.sort(fileName);
             for(String str : fileName) {
-                readPdfPara(basePath + str);
+                getTextFromPdf(basePath + str);
             }
         }
 //        splitPdf(path);
@@ -135,20 +138,37 @@ public class PdfExtractor {
         InputStream is = null;
         PDDocument document = null;
         try {
-            if (pdfPath.endsWith(".PDF")) {
+            if (pdfPath.endsWith(".pdf")) {
                 document = PDDocument.load(file);
                 PDDocumentCatalog catalog = document.getDocumentCatalog();
                 int pageSize = document.getNumberOfPages();
                 // 一页一页读取
                 for (int i = 0; i < pageSize; i++) {
                     // 文本内容
-                    PDFTextStripper stripper = new PDFTextStripper();
+                    MyPDFTextStripper stripper = new MyPDFTextStripper();
 
                     // 设置按顺序输出
                     stripper.setSortByPosition(true);
                     stripper.setStartPage(i + 1);
                     stripper.setEndPage(i + 1);
+//                    List<List<TextPosition>> textList = stripper.getCharactersByArticle();
                     String text = stripper.getText(document);
+                    List<List<TextPosition>> textList = stripper.myGetCharactersByArticle();
+                    if(textList.size() != 1) {
+                        System.out.println(1);
+                    }
+                    for(TextPosition textPosition : textList.get(0)) {
+                        String fontName = textPosition.getFont().getFontDescriptor().getFontName();
+                        String fontFamily = textPosition.getFont().getFontDescriptor().getFontFamily();
+                        String fontStretch = textPosition.getFont().getFontDescriptor().getFontStretch();
+                        String charSet = textPosition.getFont().getFontDescriptor().getCharSet();
+                        String type = textPosition.getFont().getType();
+                        String subType = textPosition.getFont().getSubType();
+                        String name = textPosition.getFont().getName();
+                        float size = textPosition.getFontSize();
+                        float weight = textPosition.getFont().getFontDescriptor().getFontWeight();
+                        System.out.println();
+                    }
                     System.out.println(text.trim());
                     System.out.println("-=-=-=-=-=-=-=-=-=-=-=-=-");
                 }

@@ -1,5 +1,6 @@
 package com.tsinghua.demo.present.docx;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
@@ -94,7 +95,8 @@ public class TableUtil {
                 }
                 complicatedTitlePos = false;
                 XWPFTableCell cell = cells.get(j);
-                int width = cell.getWidth();
+                int width = 0;
+                width = cell.getWidth();
                 widthAcc += width;
                 String text = cell.getText();
                 text = textFilterUtil.filterCharacters(text);

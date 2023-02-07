@@ -36,6 +36,8 @@ public class JsonTransfer {
     static boolean splitOut = false;
     // 记录关系出现次数的统计信息map
     static Map<String, Integer> relationCountMap = new HashMap<>();
+    // 按照训练集测试分多个文档输出
+    static int[] docSplitter = new int[]{10};
 
     public static void main(String[] args) throws Exception {
 
@@ -67,7 +69,11 @@ public class JsonTransfer {
         if(file1.isDirectory()) {
             //获取目录中的所有文件名称
             String[] fileName = file1.list();
+            int index = 0;
+            int curCount = 0;
+            int countRecord = docSplitter[index];
             for(String str : fileName) {
+                curCount++;
                 JSONObject json = readJson(sourcePath + str);
                 String text = json.getString("text");
                 // 准备工作，给文章分段分句子
@@ -85,11 +91,23 @@ public class JsonTransfer {
                 // 主流程
                 List<ParaData> paraDataList = pointToScale(titleLs, sentLs, text, json, str.split("\\.")[0]);
                 outputList.addAll(paraDataList);
+                // 达到一个可以输出的程度
+                if(curCount >= countRecord) {
+                    if(!splitOut) {
+                        outputFile(JSONObject.toJSONString(outputList), basePath + "out" + index + ".json");
+                        writeStatistic(basePath + "统计信息" + index + ".txt");
+                        curCount = 0;
+                        if(index <= docSplitter.length - 2) {
+                            countRecord = docSplitter[++index];
+                        }
+                        outputList.clear();
+                    }
+                }
             }
-        }
-        if(!splitOut) {
-            outputFile(JSONObject.toJSONString(outputList), basePath + "out.json");
-            writeStatistic(basePath + "统计信息.txt");
+            if(!splitOut && outputList.size() != 0) {
+                outputFile(JSONObject.toJSONString(outputList), basePath + "out" + index + ".json");
+                writeStatistic(basePath + "统计信息" + index + ".txt");
+            }
         }
     }
 
@@ -190,7 +208,7 @@ public class JsonTransfer {
                     if(tempFinalBorderRight >= end) {
                         scaleOk = true;
                     }
-                    // 下边界网上缩不行了，需要上边界往下缩
+                    // 下边界往上缩不行了，需要上边界往下缩
                     if(!scaleOk) {
                         tempFinalBorderRight = sentLs.get(++contentBorderRightIndex);
                         while(tempFinalBorderRight - tempFinalBorderLeft > charNumMaxLimit && tempFinalBorderLeft <= start) {
@@ -254,7 +272,7 @@ public class JsonTransfer {
             return null;
         }
         ParaData paraData = new ParaData();
-        paraData.setText(text.substring(borderLeft, borderRight));
+        String rawText = text.substring(borderLeft, borderRight);
         paraData.setTitle(titleName);
         List<CommonEntity> commonEntityList = new ArrayList<>();
         //实体去重
@@ -297,8 +315,9 @@ public class JsonTransfer {
             }
         }
         // 遍历实体，将没有共指的单独题集也用实体包住，统一格式
-        List<Integer> sentLs = splitPara(paraData.getText(), endTags, false);
-        sentLs.add(paraData.getText().length());
+        List<Integer> sentLs = splitPara(rawText, endTags, false);
+        sentLs.add(rawText.length());
+        paraData.setText(handleSents(rawText, sentLs));
         for(Entity entity : paramEntityList) {
             if(entity.getParentId() == null) {
                 List<Entity> entityList = new ArrayList<>();
@@ -317,8 +336,8 @@ public class JsonTransfer {
             int wordLength = entity.getEndOffset() - entity.getStartOffset();
             entity.setStartOffset(entity.getStartOffset() - borderLeft);
             entity.setEndOffset(entity.getStartOffset() + wordLength);
-            String output = paraData.getText().substring(entity.getStartOffset(), entity.getEndOffset());
-            System.out.println(output);
+            String output = rawText.substring(entity.getStartOffset(), entity.getEndOffset());
+//            System.out.println(output);
             // 赋值句子id
             if(sentLs.size() <= 1) {
                 entity.setSentId(0);
@@ -349,6 +368,7 @@ public class JsonTransfer {
         relationCount += finalRelations.size();
         paraData.setEntities(commonEntityList);
         paraData.setRelations(finalRelations);
+        updateOffset(paraData, sentLs);
         if(splitOut) {
             outputFile(JSONObject.toJSONString(paraData), outPath);
         }
@@ -467,6 +487,27 @@ public class JsonTransfer {
         fileWriter.write(builder.toString());
         fileWriter.flush();
         fileWriter.close();
+        relationCountMap.clear();
+    }
+
+    public static List<String> handleSents(String sent, List<Integer> sentIndex) {
+        List<String> retSents =  new ArrayList<>();
+        for(int i = 1; i < sentIndex.size(); i++) {
+            String curSent = sent.substring(sentIndex.get(i - 1), sentIndex.get(i));
+            retSents.add(curSent);
+        }
+        return retSents;
+    }
+
+    public static void updateOffset(ParaData paraData, List<Integer> sentIndex) {
+        for(CommonEntity commonEntity : paraData.getEntities()) {
+            for(Entity entity : commonEntity.getEntityList()) {
+                int len = entity.getEndOffset() - entity.getStartOffset();
+                entity.setStartOffset(entity.getStartOffset() - sentIndex.get(entity.getSentId()));
+                entity.setEndOffset(entity.getStartOffset() + len);
+                System.out.println(paraData.getText().get(entity.getSentId()).substring(entity.getStartOffset(), entity.getEndOffset()));
+            }
+        }
     }
 
 }

@@ -6,7 +6,7 @@ public class ParaData {
 
     String title;
 
-    String text;
+    List<String> text;
 
     List<CommonEntity> entities;
 
@@ -20,11 +20,11 @@ public class ParaData {
         this.title = title;
     }
 
-    public String getText() {
+    public List<String> getText() {
         return text;
     }
 
-    public void setText(String text) {
+    public void setText(List<String> text) {
         this.text = text;
     }
 
